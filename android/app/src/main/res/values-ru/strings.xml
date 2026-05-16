@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SafeShare</string>
+
+    <string name="nav_send">Отправить</string>
+    <string name="nav_receive">Получить</string>
+    <string name="nav_history">История</string>
+    <string name="nav_settings">Настройки</string>
+
+    <!-- Send flow -->
+    <string name="send_title">Отправка файла</string>
+    <string name="send_pick_file">Выбрать файл</string>
+    <string name="send_no_file">Файл не выбран</string>
+    <string name="send_selected">Выбран: %1$s (%2$s)</string>
+    <string name="send_ttl">Самоуничтожение через</string>
+    <string name="send_ttl_1h">1 час</string>
+    <string name="send_ttl_24h">24 часа</string>
+    <string name="send_ttl_7d">7 дней</string>
+    <string name="send_ttl_custom">Свой</string>
+    <string name="send_ttl_unit_min">мин</string>
+    <string name="send_ttl_unit_hr">час</string>
+    <string name="send_ttl_unit_day">дн</string>
+    <string name="send_max_downloads">Скачиваний максимум: %1$d</string>
+    <string name="send_start">Загрузить</string>
+    <string name="send_progress_fmt">%1$d%% — %2$s из %3$s</string>
+    <string name="send_done_title">Готово к передаче</string>
+    <string name="send_done_code_label">Код передачи</string>
+    <string name="send_copy_code">Скопировать</string>
+    <string name="send_share_code">Поделиться…</string>
+    <string name="send_failed">Загрузка не удалась: %1$s</string>
+    <string name="send_expires_fmt">Истекает: %1$s</string>
+
+    <!-- Receive flow -->
+    <string name="recv_title">Получение файла</string>
+    <string name="recv_code_hint">Код передачи (напр. K7XJ29MQ.слово слово …)</string>
+    <string name="recv_scan">Сканировать QR</string>
+    <string name="recv_paste">Вставить из буфера</string>
+    <string name="recv_start">Скачать и расшифровать</string>
+    <string name="recv_progress_fmt">%1$d%% — %2$s из %3$s</string>
+    <string name="recv_done_title">Файл сохранён</string>
+    <string name="recv_done_name_fmt">Исходное имя: %1$s</string>
+    <string name="recv_open_file">Открыть</string>
+    <string name="recv_new_download">Новое получение</string>
+    <string name="recv_failed">Не удалось скачать: %1$s</string>
+    <string name="recv_camera_permission_denied">Доступ к камере не разрешён. Введите код вручную или дайте разрешение в настройках системы.</string>
+
+    <!-- Notifications -->
+    <string name="upload_channel">Отправка файлов</string>
+    <string name="upload_channel_desc">Прогресс активной загрузки SafeShare.</string>
+    <string name="upload_notification_title">Отправка %1$s</string>
+    <string name="upload_notification_done">Отправлено: %1$s</string>
+    <string name="upload_notification_failed">Не удалось отправить %1$s</string>
+
+    <string name="download_channel">Скачивание файлов</string>
+    <string name="download_channel_desc">Прогресс активного скачивания SafeShare.</string>
+    <string name="download_notification_title">Скачивание…</string>
+    <string name="download_notification_done">Скачано: %1$s</string>
+    <string name="download_notification_failed">Скачивание не удалось</string>
+
+    <!-- Settings -->
+    <string name="settings_server_label">Адрес сервера</string>
+    <string name="settings_server_hint">Куда загружать и откуда скачивать файлы. Должен начинаться с http:// или https://.</string>
+    <string name="settings_save">Сохранить</string>
+    <string name="settings_reset">Сбросить</string>
+    <string name="settings_check_server">Проверить сервер</string>
+    <string name="settings_checking">Проверка…</string>
+    <string name="settings_server_ok">Сервер доступен.</string>
+    <string name="settings_server_bad_code">Сервер вернул HTTP %1$d.</string>
+    <string name="settings_server_unreachable">Недоступен: %1$s</string>
+    <string name="settings_url_empty">Введите URL</string>
+    <string name="settings_url_bad_scheme">URL должен начинаться с http:// или https://</string>
+    <string name="settings_saved">Сохранено</string>
+    <string name="settings_reset_done">Возвращено по умолчанию</string>
+    <string name="settings_about_title">О приложении</string>
+    <string name="settings_version_fmt">SafeShare v%1$s (сборка %2$d)</string>
+    <string name="settings_about_blurb">Сквозное шифрование передачи файлов. Открытый текст никогда не покидает ваше устройство.</string>
+
+    <!-- History -->
+    <string name="history_empty">История пуста. Отправьте или получите файл, чтобы он появился здесь.</string>
+    <string name="history_dir_sent">ОТПРАВЛЕНО</string>
+    <string name="history_dir_received">ПОЛУЧЕНО</string>
+    <string name="history_status_in_progress">В ПРОЦЕССЕ</string>
+    <string name="history_status_done">ГОТОВО</string>
+    <string name="history_status_failed">ОШИБКА</string>
+    <string name="history_status_revoked">ОТОЗВАНО</string>
+    <string name="history_status_unknown">НЕИЗВЕСТНО</string>
+    <string name="history_meta_fmt">ID: %1$s · %2$s</string>
+    <string name="history_copied_file_id">ID файла скопирован</string>
+    <string name="history_copied_filename">Имя файла скопировано</string>
+
+    <!-- Generic errors -->
+    <string name="err_unknown">Неизвестная ошибка.</string>
+    <string name="err_unknown_host">Не удалось распознать адрес сервера. Проверьте URL и сеть.</string>
+    <string name="err_connect_refused">Сервер недоступен.</string>
+    <string name="err_timeout">Истекло время ожидания. Попробуйте при лучшем соединении.</string>
+    <string name="err_unexpected_eof">Передача оборвалась. Попробуйте ещё раз.</string>
+    <string name="err_decrypt">Расшифровка не удалась. Неверный код или файл был изменён.</string>
+    <string name="err_not_found">Файл не найден. Возможно, неверный код, или файл удалён.</string>
+    <string name="err_gone">Файл истёк или исчерпал лимит скачиваний.</string>
+    <string name="err_too_large">Файл слишком большой.</string>
+    <string name="err_server_error">Ошибка сервера. Повторите позже.</string>
+    <string name="err_io">Ошибка ввода-вывода.</string>
+</resources>

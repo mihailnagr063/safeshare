@@ -1,0 +1,33 @@
+[package]
+name = "safeshare-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Zero-knowledge file transfer backend for SafeShare."
+
+[lib]
+name = "safeshare_server"
+path = "src/lib.rs"
+
+[[bin]]
+name = "safeshare-server"
+path = "src/main.rs"
+
+[dependencies]
+axum.workspace = true
+tokio.workspace = true
+tower-http.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+thiserror.workspace = true
+anyhow.workspace = true
+hex.workspace = true
+sha2.workspace = true
+rand.workspace = true
+chrono.workspace = true
+futures.workspace = true
+tokio-util.workspace = true
+bytes.workspace = true

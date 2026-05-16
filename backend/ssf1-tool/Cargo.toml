@@ -1,0 +1,17 @@
+[package]
+name = "ssf1-tool"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "CLI reference implementation / test harness for SSF1."
+
+[[bin]]
+name = "ssf1-tool"
+path = "src/main.rs"
+
+[dependencies]
+ssf1 = { path = "../ssf1" }
+anyhow.workspace = true
+hex.workspace = true
+sha2.workspace = true
+rand.workspace = true

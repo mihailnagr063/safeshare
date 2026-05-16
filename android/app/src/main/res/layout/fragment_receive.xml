@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            style="@style/TextAppearance.Material3.HeadlineSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/recv_title"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Input / idle state -->
+        <LinearLayout
+            android:id="@+id/group_input"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/recv_code_hint"
+                app:boxBackgroundMode="outline">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/edit_code"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="monospace"
+                    android:inputType="textMultiLine|textNoSuggestions"
+                    android:minLines="3"
+                    android:gravity="top"
+                    android:importantForAutofill="no"/>
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_scan"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:text="@string/recv_scan"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_paste"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="@string/recv_paste"/>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_start"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:enabled="false"
+                android:text="@string/recv_start"/>
+        </LinearLayout>
+
+        <!-- Progress -->
+        <LinearLayout
+            android:id="@+id/group_progress"
+            android:visibility="gone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/progress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100"/>
+
+            <TextView
+                android:id="@+id/text_progress"
+                style="@style/TextAppearance.Material3.BodyMedium"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="0%"/>
+        </LinearLayout>
+
+        <!-- Done -->
+        <LinearLayout
+            android:id="@+id/group_done"
+            android:visibility="gone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/TextAppearance.Material3.TitleMedium"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/recv_done_title"/>
+
+            <TextView
+                android:id="@+id/text_filename"
+                style="@style/TextAppearance.Material3.BodyMedium"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="12dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_open"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:text="@string/recv_open_file"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_new"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="@string/recv_new_download"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Error -->
+        <TextView
+            android:id="@+id/text_error"
+            android:visibility="gone"
+            style="@style/TextAppearance.Material3.BodyMedium"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/colorError"
+            android:layout_marginTop="12dp"/>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

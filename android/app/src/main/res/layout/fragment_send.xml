@@ -1,0 +1,272 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.core.widget.NestedScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            style="@style/TextAppearance.Material3.HeadlineSmall"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/send_title"
+            android:layout_marginBottom="16dp"/>
+
+        <!-- Pre-upload state -->
+        <LinearLayout
+            android:id="@+id/group_picker"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_pick"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/send_pick_file"/>
+
+            <TextView
+                android:id="@+id/text_selection"
+                style="@style/TextAppearance.Material3.BodyMedium"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/send_no_file"
+                android:layout_marginTop="8dp"/>
+
+            <TextView
+                style="@style/TextAppearance.Material3.TitleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/send_ttl"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="4dp"/>
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/group_ttl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:singleSelection="true"
+                app:selectionRequired="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/ttl_1h"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="@string/send_ttl_1h"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/ttl_24h"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="@string/send_ttl_24h"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/ttl_7d"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="@string/send_ttl_7d"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/ttl_custom"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:text="@string/send_ttl_custom"/>
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <!-- Custom TTL input (visible only when "Custom" is selected) -->
+            <LinearLayout
+                android:id="@+id/group_custom_ttl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                android:layout_marginTop="8dp">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    app:boxBackgroundMode="outline">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edit_ttl_value"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:text="2"
+                        android:importantForAutofill="no"/>
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/group_ttl_unit"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    app:singleSelection="true"
+                    app:selectionRequired="true">
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/ttl_unit_min"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/send_ttl_unit_min"/>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/ttl_unit_hr"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/send_ttl_unit_hr"/>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/ttl_unit_day"
+                        style="?attr/materialButtonOutlinedStyle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/send_ttl_unit_day"/>
+                </com.google.android.material.button.MaterialButtonToggleGroup>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/text_max_downloads"
+                style="@style/TextAppearance.Material3.TitleSmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:layout_marginBottom="4dp"
+                android:text="@string/send_max_downloads"/>
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/slider_max_downloads"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:valueFrom="1"
+                android:valueTo="20"
+                android:stepSize="1"
+                android:value="3"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_start"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="@string/send_start"
+                android:enabled="false"/>
+        </LinearLayout>
+
+        <!-- In-progress state -->
+        <LinearLayout
+            android:id="@+id/group_progress"
+            android:visibility="gone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/progress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:max="100"/>
+
+            <TextView
+                android:id="@+id/text_progress"
+                style="@style/TextAppearance.Material3.BodyMedium"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="0%"/>
+        </LinearLayout>
+
+        <!-- Done state -->
+        <LinearLayout
+            android:id="@+id/group_done"
+            android:visibility="gone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/TextAppearance.Material3.TitleMedium"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/send_done_title"/>
+
+            <ImageView
+                android:id="@+id/image_qr"
+                android:layout_width="match_parent"
+                android:layout_height="300dp"
+                android:layout_marginTop="12dp"
+                android:scaleType="fitCenter"
+                android:adjustViewBounds="true"
+                android:background="#ffffff"
+                android:importantForAccessibility="no"/>
+
+            <TextView
+                style="@style/TextAppearance.Material3.LabelMedium"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/send_done_code_label"
+                android:layout_marginTop="12dp"/>
+
+            <TextView
+                android:id="@+id/text_code"
+                style="@style/TextAppearance.Material3.BodyMedium"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="monospace"
+                android:textIsSelectable="true"
+                android:padding="8dp"
+                android:background="?attr/colorSurfaceContainer"
+                android:layout_marginTop="4dp"/>
+
+            <TextView
+                android:id="@+id/text_expires"
+                style="@style/TextAppearance.Material3.BodySmall"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="12dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_copy"
+                    style="?attr/materialButtonOutlinedStyle"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:text="@string/send_copy_code"/>
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/button_share"
+                    android:layout_width="0dp"
+                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="@string/send_share_code"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Failed state -->
+        <TextView
+            android:id="@+id/text_error"
+            android:visibility="gone"
+            style="@style/TextAppearance.Material3.BodyMedium"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/colorError"/>
+    </LinearLayout>
+</androidx.core.widget.NestedScrollView>

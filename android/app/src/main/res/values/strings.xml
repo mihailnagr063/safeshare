@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SafeShare</string>
+
+    <string name="nav_send">Send</string>
+    <string name="nav_receive">Receive</string>
+    <string name="nav_history">History</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Send flow -->
+    <string name="send_title">Send a file</string>
+    <string name="send_pick_file">Pick file</string>
+    <string name="send_no_file">No file selected</string>
+    <string name="send_selected">Selected: %1$s (%2$s)</string>
+    <string name="send_ttl">Self-destruct after</string>
+    <string name="send_ttl_1h">1 hour</string>
+    <string name="send_ttl_24h">24 hours</string>
+    <string name="send_ttl_7d">7 days</string>
+    <string name="send_ttl_custom">Custom</string>
+    <string name="send_ttl_unit_min">min</string>
+    <string name="send_ttl_unit_hr">hr</string>
+    <string name="send_ttl_unit_day">day</string>
+    <string name="send_max_downloads">Max downloads: %1$d</string>
+    <string name="send_start">Start upload</string>
+    <string name="send_progress_fmt">%1$d%% — %2$s of %3$s</string>
+    <string name="send_done_title">Ready to share</string>
+    <string name="send_done_code_label">Transfer code</string>
+    <string name="send_copy_code">Copy code</string>
+    <string name="send_share_code">Share…</string>
+    <string name="send_failed">Upload failed: %1$s</string>
+    <string name="send_expires_fmt">Expires: %1$s</string>
+
+    <!-- Receive flow -->
+    <string name="recv_title">Receive a file</string>
+    <string name="recv_code_hint">Transfer code (e.g. K7XJ29MQ.word word …)</string>
+    <string name="recv_scan">Scan QR</string>
+    <string name="recv_paste">Paste from clipboard</string>
+    <string name="recv_start">Download and decrypt</string>
+    <string name="recv_progress_fmt">%1$d%% — %2$s of %3$s</string>
+    <string name="recv_done_title">File saved</string>
+    <string name="recv_done_name_fmt">Original name: %1$s</string>
+    <string name="recv_open_file">Open</string>
+    <string name="recv_new_download">New download</string>
+    <string name="recv_failed">Download failed: %1$s</string>
+    <string name="recv_camera_permission_denied">Camera permission denied. Enter the code by hand, or grant permission in system settings.</string>
+
+    <!-- Notifications -->
+    <string name="upload_channel">File uploads</string>
+    <string name="upload_channel_desc">Progress of ongoing SafeShare uploads.</string>
+    <string name="upload_notification_title">Uploading %1$s</string>
+    <string name="upload_notification_done">Uploaded %1$s</string>
+    <string name="upload_notification_failed">Failed to upload %1$s</string>
+
+    <string name="download_channel">File downloads</string>
+    <string name="download_channel_desc">Progress of ongoing SafeShare downloads.</string>
+    <string name="download_notification_title">Downloading…</string>
+    <string name="download_notification_done">Downloaded %1$s</string>
+    <string name="download_notification_failed">Download failed</string>
+
+    <!-- Settings -->
+    <string name="settings_server_label">Backend URL</string>
+    <string name="settings_server_hint">Where to upload and download files. Must start with http:// or https://.</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_reset">Reset to default</string>
+    <string name="settings_check_server">Check server</string>
+    <string name="settings_checking">Checking…</string>
+    <string name="settings_server_ok">Server is reachable.</string>
+    <string name="settings_server_bad_code">Server returned HTTP %1$d.</string>
+    <string name="settings_server_unreachable">Unreachable: %1$s</string>
+    <string name="settings_url_empty">URL is required</string>
+    <string name="settings_url_bad_scheme">URL must start with http:// or https://</string>
+    <string name="settings_saved">Saved</string>
+    <string name="settings_reset_done">Reset to default</string>
+    <string name="settings_about_title">About</string>
+    <string name="settings_version_fmt">SafeShare v%1$s (build %2$d)</string>
+    <string name="settings_about_blurb">End-to-end encrypted file sharing. Plaintext never leaves your device.</string>
+
+    <!-- History -->
+    <string name="history_empty">No transfers yet. Send or receive a file to see it here.</string>
+    <string name="history_dir_sent">SENT</string>
+    <string name="history_dir_received">RECEIVED</string>
+    <string name="history_status_in_progress">IN PROGRESS</string>
+    <string name="history_status_done">DONE</string>
+    <string name="history_status_failed">FAILED</string>
+    <string name="history_status_revoked">REVOKED</string>
+    <string name="history_status_unknown">UNKNOWN</string>
+    <string name="history_meta_fmt">ID: %1$s · %2$s</string>
+    <string name="history_copied_file_id">File ID copied</string>
+    <string name="history_copied_filename">Filename copied</string>
+
+    <!-- Generic errors -->
+    <string name="err_unknown">Unknown error.</string>
+    <string name="err_unknown_host">Server name could not be resolved. Check the URL and the network.</string>
+    <string name="err_connect_refused">Server is not reachable.</string>
+    <string name="err_timeout">Network timed out. Try again on a better connection.</string>
+    <string name="err_unexpected_eof">The download ended unexpectedly. Try again.</string>
+    <string name="err_decrypt">Decryption failed. The code is wrong or the file was tampered with.</string>
+    <string name="err_not_found">File not found. The code may be wrong or the file was deleted.</string>
+    <string name="err_gone">File expired or already reached its download limit.</string>
+    <string name="err_too_large">File too large.</string>
+    <string name="err_server_error">Server error. Try again later.</string>
+    <string name="err_io">I/O error.</string>
+</resources>
