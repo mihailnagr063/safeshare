@@ -58,6 +58,7 @@ public class SendFragment extends Fragment {
     private MaterialButton buttonStart;
     private MaterialButton buttonCopy;
     private MaterialButton buttonShare;
+    private MaterialButton buttonNewSend;
     private TextView textSelection;
     private TextView textMaxDownloads;
     private TextView textProgress;
@@ -94,6 +95,7 @@ public class SendFragment extends Fragment {
         buttonStart = v.findViewById(R.id.button_start);
         buttonCopy = v.findViewById(R.id.button_copy);
         buttonShare = v.findViewById(R.id.button_share);
+        buttonNewSend = v.findViewById(R.id.button_new_send);
         textSelection = v.findViewById(R.id.text_selection);
         textMaxDownloads = v.findViewById(R.id.text_max_downloads);
         textProgress = v.findViewById(R.id.text_progress);
@@ -109,6 +111,7 @@ public class SendFragment extends Fragment {
         buttonStart.setOnClickListener(x -> startUpload());
         buttonCopy.setOnClickListener(x -> copyCode());
         buttonShare.setOnClickListener(x -> shareCode());
+        buttonNewSend.setOnClickListener(x -> resetToIdle());
 
         View groupCustomTtl = v.findViewById(R.id.group_custom_ttl);
         com.google.android.material.textfield.TextInputEditText editTtlValue =
@@ -181,6 +184,8 @@ public class SendFragment extends Fragment {
                 show(groupProgress, false);
                 show(groupDone, false);
                 show(textError, false);
+                textSelection.setText(R.string.send_no_file);
+                buttonStart.setEnabled(false);
                 break;
             case UPLOADING: {
                 show(groupPicker, false);
@@ -232,6 +237,13 @@ public class SendFragment extends Fragment {
         intent.setType("text/plain");
         intent.putExtra(Intent.EXTRA_TEXT, code);
         startActivity(Intent.createChooser(intent, null));
+    }
+
+    private void resetToIdle() {
+        pickedUri = null;
+        pickedName = null;
+        pickedSize = 0;
+        UploadController.get().reset();
     }
 
     private static void show(View v, boolean visible) {
