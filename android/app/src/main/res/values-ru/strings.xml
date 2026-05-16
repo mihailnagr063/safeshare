@@ -13,9 +13,9 @@
     <string name="send_no_file">Файл не выбран</string>
     <string name="send_selected">Выбран: %1$s (%2$s)</string>
     <string name="send_ttl">Самоуничтожение через</string>
-    <string name="send_ttl_1h">1 час</string>
-    <string name="send_ttl_24h">24 часа</string>
-    <string name="send_ttl_7d">7 дней</string>
+    <string name="send_ttl_1h">1ч</string>
+    <string name="send_ttl_24h">24ч</string>
+    <string name="send_ttl_7d">7д</string>
     <string name="send_ttl_custom">Свой</string>
     <string name="send_ttl_unit_min">мин</string>
     <string name="send_ttl_unit_hr">час</string>

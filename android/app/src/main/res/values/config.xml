@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Override at install time or via Settings fragment. -->
-    <string name="safeshare_api_base">http://10.0.2.2:8080</string>
+    <string name="safeshare_api_base">https://medveed.ydns.eu:6677</string>
 </resources>

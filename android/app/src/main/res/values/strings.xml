@@ -13,10 +13,10 @@
     <string name="send_no_file">No file selected</string>
     <string name="send_selected">Selected: %1$s (%2$s)</string>
     <string name="send_ttl">Self-destruct after</string>
-    <string name="send_ttl_1h">1 hour</string>
-    <string name="send_ttl_24h">24 hours</string>
-    <string name="send_ttl_7d">7 days</string>
-    <string name="send_ttl_custom">Custom</string>
+    <string name="send_ttl_1h">1h</string>
+    <string name="send_ttl_24h">24h</string>
+    <string name="send_ttl_7d">7d</string>
+    <string name="send_ttl_custom">More…</string>
     <string name="send_ttl_unit_min">min</string>
     <string name="send_ttl_unit_hr">hr</string>
     <string name="send_ttl_unit_day">day</string>
