@@ -1,4 +1,4 @@
-//! Runtime configuration, read from environment variables on startup.
+//! Runtime configuration
 
 use std::path::PathBuf;
 

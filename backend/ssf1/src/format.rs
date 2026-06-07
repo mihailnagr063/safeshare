@@ -1,8 +1,4 @@
-//! Streaming SSF1 encrypt / decrypt.
-//!
-//! Both functions take a reader and a writer and do not allocate per
-//! chunk beyond a single 1 MiB buffer. The byte layout is documented
-//! in `docs/PROTOCOL.md` §6.
+//! Streaming SSF1 encrypt / decrypt
 
 use std::io::{Read, Write};
 
@@ -16,13 +12,12 @@ use crate::error::Ssf1Error;
 
 pub const MAGIC: [u8; 4] = *b"SSF1";
 pub const VERSION: u8 = 0x01;
-pub const CHUNK_SIZE: usize = 1 << 20; // 1 MiB
+pub const CHUNK_SIZE: usize = 1 << 20; // 1 MB
 pub const CHUNK_SIZE_LOG2: u8 = 20;
 pub const TAG_LEN: usize = 16;
 pub const HEADER_LEN: usize = 24; // magic(4)+ver(1)+log2(1)+res(2)+N(4)+size(8)+R(4)
 pub const NAME_NONCE_COUNTER: u64 = 0xFFFF_FFFF_FFFF_FFFE;
 
-/// Freshly generated per-file key material.
 #[derive(Debug, Clone)]
 pub struct KeyMaterial {
     pub key: [u8; 16],
@@ -58,11 +53,6 @@ fn chunk_aad(i: u32, total: u32, last: bool) -> [u8; 19] {
 
 const NAME_AAD: &[u8; 9] = b"SSF1:name";
 
-/// Encrypt `plaintext_size` bytes read from `reader` with filename
-/// `filename` into `writer` using `km`.
-///
-/// Streams chunk-by-chunk. `plaintext_size` must match the number of
-/// bytes actually produced by `reader`.
 pub fn encrypt_stream<R: Read, W: Write>(
     km: &KeyMaterial,
     filename: &str,
@@ -85,7 +75,6 @@ pub fn encrypt_stream<R: Read, W: Write>(
         return Err(Ssf1Error::InvalidArgument("total_chunks must be >= 1"));
     }
 
-    // Header
     let mut hdr = [0u8; HEADER_LEN];
     hdr[..4].copy_from_slice(&MAGIC);
     hdr[4] = VERSION;
@@ -96,7 +85,6 @@ pub fn encrypt_stream<R: Read, W: Write>(
     hdr[20..24].copy_from_slice(&km.r);
     writer.write_all(&hdr)?;
 
-    // Filename blob
     let name_bytes = filename.as_bytes();
     let mut name_buf = Vec::with_capacity(name_bytes.len() + TAG_LEN);
     name_buf.extend_from_slice(name_bytes);
@@ -112,7 +100,6 @@ pub fn encrypt_stream<R: Read, W: Write>(
     writer.write_all(&name_len.to_be_bytes())?;
     writer.write_all(&name_buf)?;
 
-    // Chunks
     let mut buffer = vec![0u8; CHUNK_SIZE + TAG_LEN];
     let mut bytes_remaining = plaintext_size;
     for i in 0..total_chunks {
@@ -146,11 +133,6 @@ pub fn encrypt_stream<R: Read, W: Write>(
     Ok(())
 }
 
-/// Decrypt an SSF1 stream. Returns the recovered filename. Plaintext
-/// bytes are written to `writer` as they are produced.
-///
-/// If `expected_r` is Some, it MUST match the header's R (defence in
-/// depth: the transfer code already carries R).
 pub fn decrypt_stream<R: Read, W: Write>(
     key: &[u8; 16],
     expected_r: Option<&[u8; 4]>,
@@ -159,7 +141,6 @@ pub fn decrypt_stream<R: Read, W: Write>(
 ) -> Result<String, Ssf1Error> {
     let cipher = Aes128Gcm::new_from_slice(key).expect("16-byte key");
 
-    // Header
     let mut hdr = [0u8; HEADER_LEN];
     read_exact_into(&mut reader, &mut hdr)?;
     if hdr[..4] != MAGIC {
@@ -195,7 +176,6 @@ pub fn decrypt_stream<R: Read, W: Write>(
         ));
     }
 
-    // Filename
     let mut name_len_buf = [0u8; 2];
     read_exact_into(&mut reader, &mut name_len_buf)?;
     let name_len = u16::from_be_bytes(name_len_buf) as usize;
@@ -214,7 +194,6 @@ pub fn decrypt_stream<R: Read, W: Write>(
         .map_err(|_| Ssf1Error::MalformedHeader("filename not UTF-8"))?
         .to_string();
 
-    // Chunks
     let mut buffer = vec![0u8; CHUNK_SIZE];
     let mut bytes_remaining = plaintext_size;
     for i in 0..total_chunks {
@@ -245,7 +224,6 @@ pub fn decrypt_stream<R: Read, W: Write>(
         bytes_remaining -= want as u64;
     }
 
-    // The stream MUST end exactly here.
     let mut trailing = [0u8; 1];
     match reader.read(&mut trailing) {
         Ok(0) => {}

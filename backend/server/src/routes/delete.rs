@@ -1,5 +1,3 @@
-//! `DELETE /api/files/{id}` - delete a file before its TTL expires.
-
 use axum::{
     extract::{Path, State},
     http::{HeaderMap, StatusCode},

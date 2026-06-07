@@ -14,12 +14,12 @@ public final class KeyMaterial {
         this.r = r;
     }
 
-    public static KeyMaterial generate() {
-        SecureRandom rng = new SecureRandom();
+    public static KeyMaterial fromHkdf(byte[] okm20) {
+        if (okm20.length != 20) throw new IllegalArgumentException("OKM must be 20 bytes");
         byte[] k = new byte[16];
         byte[] r = new byte[4];
-        rng.nextBytes(k);
-        rng.nextBytes(r);
+        System.arraycopy(okm20, 0, k, 0, 16);
+        System.arraycopy(okm20, 16, r, 0, 4);
         return new KeyMaterial(k, r);
     }
 }

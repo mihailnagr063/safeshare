@@ -3,7 +3,6 @@ name = "safeshare-server"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Zero-knowledge file transfer backend for SafeShare."
 
 [lib]
 name = "safeshare_server"
@@ -25,6 +24,7 @@ sqlx.workspace = true
 thiserror.workspace = true
 anyhow.workspace = true
 hex.workspace = true
+base64.workspace = true
 sha2.workspace = true
 rand.workspace = true
 chrono.workspace = true

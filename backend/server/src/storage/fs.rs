@@ -1,4 +1,4 @@
-//! Filesystem layout for ciphertext blobs.
+//! Filesystem
 
 use std::path::{Path, PathBuf};
 

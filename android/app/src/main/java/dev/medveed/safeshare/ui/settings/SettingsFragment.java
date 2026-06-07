@@ -5,44 +5,24 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.button.MaterialButton;
-import com.google.android.material.textfield.TextInputEditText;
-
-import java.io.IOException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import com.google.android.material.button.MaterialButtonToggleGroup;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import dev.medveed.safeshare.util.SnackbarUtil;
 
 import dev.medveed.safeshare.BuildConfig;
 import dev.medveed.safeshare.R;
-import dev.medveed.safeshare.net.ApiClient;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
+import dev.medveed.safeshare.db.AppDatabase;
 
 public class SettingsFragment extends Fragment {
 
-    private TextInputEditText editServerUrl;
-    private TextView textHealth;
-    private TextView textVersion;
-    private ExecutorService executor;
-
-    @Override
-    public void onCreate(@Nullable Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        executor = Executors.newSingleThreadExecutor();
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        if (executor != null) executor.shutdownNow();
-    }
+    private MaterialButtonToggleGroup groupTheme;
 
     @Nullable
     @Override
@@ -54,68 +34,79 @@ public class SettingsFragment extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View v, @Nullable Bundle savedInstanceState) {
-        editServerUrl = v.findViewById(R.id.edit_server_url);
-        textHealth = v.findViewById(R.id.text_health);
-        textVersion = v.findViewById(R.id.text_version);
-        MaterialButton save = v.findViewById(R.id.button_save);
-        MaterialButton reset = v.findViewById(R.id.button_reset);
-        MaterialButton check = v.findViewById(R.id.button_health);
+        groupTheme = v.findViewById(R.id.group_theme);
+        TextView textVersion = v.findViewById(R.id.text_version);
+        MaterialButton clearHistory = v.findViewById(R.id.button_clear_history);
+        MaterialButton resetOnboarding = v.findViewById(R.id.button_reset_onboarding);
+        View buttonStorage = v.findViewById(R.id.button_storage);
 
-        editServerUrl.setText(ApiClient.get(requireContext()).baseUrl());
+        View groupDebug = v.findViewById(R.id.group_debug);
+
         textVersion.setText(getString(R.string.settings_version_fmt,
-                BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE));
+                BuildConfig.VERSION_NAME));
 
-        save.setOnClickListener(x -> saveUrl());
-        reset.setOnClickListener(x -> resetUrl());
-        check.setOnClickListener(x -> probeHealth());
-    }
+        groupDebug.setVisibility(BuildConfig.DEBUG ? View.VISIBLE : View.GONE);
 
-    private void saveUrl() {
-        CharSequence cs = editServerUrl.getText();
-        if (cs == null) return;
-        String url = cs.toString().trim();
-        if (url.isEmpty()) {
-            editServerUrl.setError(getString(R.string.settings_url_empty));
-            return;
-        }
-        if (!(url.startsWith("http://") || url.startsWith("https://"))) {
-            editServerUrl.setError(getString(R.string.settings_url_bad_scheme));
-            return;
-        }
-        ApiClient.setBaseUrl(requireContext(), url);
-        editServerUrl.setText(ApiClient.get(requireContext()).baseUrl());
-        Toast.makeText(requireContext(), R.string.settings_saved, Toast.LENGTH_SHORT).show();
-    }
+        loadTheme();
 
-    private void resetUrl() {
-        ApiClient.setBaseUrl(requireContext(), "");
-        editServerUrl.setText(ApiClient.get(requireContext()).baseUrl());
-        Toast.makeText(requireContext(), R.string.settings_reset_done, Toast.LENGTH_SHORT).show();
-    }
+        clearHistory.setOnClickListener(x -> confirmClearHistory());
+        resetOnboarding.setOnClickListener(x -> resetOnboarding());
+        buttonStorage.setOnClickListener(x -> openStorageSettings());
 
-    private void probeHealth() {
-        textHealth.setText(R.string.settings_checking);
-        final String base = ApiClient.get(requireContext()).baseUrl();
-        executor.execute(() -> {
-            String result;
-            try {
-                Request req = new Request.Builder().url(base + "healthz").build();
-                try (Response resp = new OkHttpClient().newCall(req).execute()) {
-                    if (resp.isSuccessful()) {
-                        result = getString(R.string.settings_server_ok);
-                    } else {
-                        result = getString(R.string.settings_server_bad_code,
-                                resp.code());
-                    }
-                }
-            } catch (IOException e) {
-                result = getString(R.string.settings_server_unreachable,
-                        e.getMessage() == null ? "?" : e.getMessage());
-            }
-            final String r = result;
-            if (textHealth != null) {
-                textHealth.post(() -> textHealth.setText(r));
-            }
+        groupTheme.addOnButtonCheckedListener((g, id, checked) -> {
+            if (!checked) return;
+            int mode;
+            if (id == R.id.theme_light) mode = AppCompatDelegate.MODE_NIGHT_NO;
+            else if (id == R.id.theme_dark) mode = AppCompatDelegate.MODE_NIGHT_YES;
+            else mode = AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM;
+            AppCompatDelegate.setDefaultNightMode(mode);
+            requireContext().getSharedPreferences("settings", 0)
+                    .edit().putInt("theme_mode", mode).apply();
         });
+    }
+
+    private void openStorageSettings() {
+        requireActivity().getSupportFragmentManager()
+                .beginTransaction()
+                .setCustomAnimations(R.anim.slide_in_right, R.anim.slide_out_left,
+                        R.anim.slide_in_left, R.anim.slide_out_right)
+                .replace(R.id.nav_host, new StorageSettingsFragment())
+                .addToBackStack("storage")
+                .commit();
+    }
+
+    private void loadTheme() {
+        int saved = requireContext().getSharedPreferences("settings", 0)
+                .getInt("theme_mode", AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM);
+        int id;
+        if (saved == AppCompatDelegate.MODE_NIGHT_NO) id = R.id.theme_light;
+        else if (saved == AppCompatDelegate.MODE_NIGHT_YES) id = R.id.theme_dark;
+        else id = R.id.theme_system;
+        groupTheme.check(id);
+    }
+
+    private void confirmClearHistory() {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.history_clear_title)
+                .setMessage(R.string.history_clear_confirm)
+                .setPositiveButton(R.string.history_clear, (dialog, which) -> {
+                    new Thread(() -> {
+                        AppDatabase.get(requireContext()).transferDao().deleteAll();
+                        if (getView() != null)
+                            getView().post(() ->
+                                    SnackbarUtil.show(SettingsFragment.this, getView(), R.string.history_cleared));
+                    }).start();
+                })
+                .setNegativeButton(R.string.contacts_cancel, null)
+                .show();
+    }
+
+    private void resetOnboarding() {
+        requireContext().getSharedPreferences("onboarding", 0)
+                .edit().putBoolean("done", false).apply();
+        requireContext().getSharedPreferences("discovery", 0)
+                .edit().putBoolean("done", false).apply();
+        if (getView() != null)
+            SnackbarUtil.show(this, getView(), R.string.settings_onboarding_reset);
     }
 }

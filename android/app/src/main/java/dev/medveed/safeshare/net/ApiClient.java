@@ -34,7 +34,7 @@ public final class ApiClient {
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(5, TimeUnit.MINUTES)
                 .writeTimeout(30, TimeUnit.MINUTES)
-                .callTimeout(0, TimeUnit.MILLISECONDS) // unbounded
+                .callTimeout(0, TimeUnit.MILLISECONDS)
                 .retryOnConnectionFailure(true)
                 .addInterceptor(logging)
                 .build();
@@ -57,6 +57,10 @@ public final class ApiClient {
             }
             return instance;
         }
+    }
+
+    public static ApiClient createForBaseUrl(String baseUrl) {
+        return new ApiClient(baseUrl);
     }
 
     public static synchronized void invalidate() {

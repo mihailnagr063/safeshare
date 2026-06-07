@@ -18,6 +18,7 @@ public interface ApiService {
             @Header("X-SafeShare-Ttl-Seconds") long ttlSeconds,
             @Header("X-SafeShare-Max-Downloads") long maxDownloads,
             @Header("X-SafeShare-Owner-Token") String ownerTokenHashHex,
+            @Header("X-SafeShare-Filename") String filenameB64,
             @Body RequestBody body
     );
 

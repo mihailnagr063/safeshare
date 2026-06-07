@@ -47,7 +47,7 @@ public final class UploadController {
     private static final UploadController INSTANCE = new UploadController();
     private final MutableLiveData<State> state = new MutableLiveData<>(State.idle());
 
-    private UploadController() { /* singleton */ }
+    private UploadController() {}
 
     public static UploadController get() { return INSTANCE; }
 

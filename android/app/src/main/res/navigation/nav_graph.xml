@@ -17,6 +17,11 @@
         android:label="@string/nav_receive" />
 
     <fragment
+        android:id="@+id/nav_contacts"
+        android:name="dev.medveed.safeshare.ui.contacts.ContactsFragment"
+        android:label="@string/nav_contacts" />
+
+    <fragment
         android:id="@+id/nav_history"
         android:name="dev.medveed.safeshare.ui.history.HistoryFragment"
         android:label="@string/nav_history" />

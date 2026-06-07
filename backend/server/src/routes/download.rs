@@ -1,14 +1,10 @@
-//! `GET /api/files/{id}` and `HEAD /api/files/{id}`.
-//!
-//! GET streams the ciphertext and increments the download counter.
-//! HEAD only tests existence.
-
 use axum::{
     body::Body,
     extract::{Path, State},
-    http::{header, HeaderMap, StatusCode},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
 };
+use base64::Engine;
 use tokio_util::io::ReaderStream;
 
 use crate::{
@@ -40,6 +36,8 @@ pub async fn get_file(
     let stream = ReaderStream::new(file);
     let body = Body::from_stream(stream);
 
+    let filename_b64 = filename_to_base64(&rec.filename);
+
     let mut resp = Response::new(body);
     resp.headers_mut().insert(
         header::CONTENT_TYPE,
@@ -48,6 +46,10 @@ pub async fn get_file(
     resp.headers_mut().insert(
         header::CONTENT_LENGTH,
         header::HeaderValue::from_str(&rec.size_bytes.to_string()).unwrap(),
+    );
+    resp.headers_mut().insert(
+        "x-safeshare-filename",
+        HeaderValue::from_str(&filename_b64).unwrap(),
     );
     *resp.status_mut() = StatusCode::OK;
 
@@ -69,10 +71,23 @@ pub async fn head_file(
     if rec.expires_at <= now || rec.downloads_count >= rec.max_downloads {
         return Err(AppError::Gone);
     }
+    let filename_b64 = filename_to_base64(&rec.filename);
     let mut headers = HeaderMap::new();
     headers.insert(
         header::CONTENT_LENGTH,
         header::HeaderValue::from_str(&rec.size_bytes.to_string()).unwrap(),
     );
+    headers.insert(
+        "x-safeshare-filename",
+        HeaderValue::from_str(&filename_b64).unwrap(),
+    );
     Ok((StatusCode::OK, headers).into_response())
+}
+
+fn filename_to_base64(name: &str) -> String {
+    if name.is_empty() {
+        return String::new();
+    }
+    let engine = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    engine.encode(name.as_bytes())
 }

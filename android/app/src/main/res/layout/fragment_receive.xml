@@ -19,7 +19,6 @@
             android:text="@string/recv_title"
             android:layout_marginBottom="16dp"/>
 
-        <!-- Input / idle state -->
         <LinearLayout
             android:id="@+id/group_input"
             android:layout_width="match_parent"
@@ -76,7 +75,6 @@
                 android:text="@string/recv_start"/>
         </LinearLayout>
 
-        <!-- Progress -->
         <LinearLayout
             android:id="@+id/group_progress"
             android:visibility="gone"
@@ -99,7 +97,6 @@
                 android:text="0%"/>
         </LinearLayout>
 
-        <!-- Done -->
         <LinearLayout
             android:id="@+id/group_done"
             android:visibility="gone"
@@ -114,17 +111,32 @@
                 android:text="@string/recv_done_title"/>
 
             <TextView
-                android:id="@+id/text_filename"
-                style="@style/TextAppearance.Material3.BodyMedium"
+                android:id="@+id/text_original_filename"
+                style="@style/TextAppearance.Material3.BodySmall"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"/>
+                android:layout_marginTop="8dp"
+                android:visibility="gone"/>
+
+            <TextView
+                android:id="@+id/text_filename"
+                style="@style/TextAppearance.Material3.BodySmall"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"/>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_open_folder"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/recv_open_folder"/>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginTop="12dp">
+                android:layout_marginTop="4dp">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/button_open"
@@ -144,7 +156,6 @@
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Error -->
         <TextView
             android:id="@+id/text_error"
             android:visibility="gone"

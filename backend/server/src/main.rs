@@ -1,5 +1,3 @@
-//! SafeShare backend entry point.
-
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 use safeshare_server::{app, build_state, config::Config, ttl};

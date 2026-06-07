@@ -3,18 +3,21 @@ package dev.medveed.safeshare.ui.history;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import dev.medveed.safeshare.util.SnackbarUtil;
 
 import dev.medveed.safeshare.R;
 import dev.medveed.safeshare.db.AppDatabase;
@@ -51,6 +54,27 @@ public class HistoryFragment extends Fragment {
     }
 
     private void onItemClick(@NonNull TransferEntity it) {
+        if (it.direction == TransferEntity.DIRECTION_RECEIVE
+                && it.status == TransferEntity.STATUS_DONE
+                && it.savedUri != null && !it.savedUri.isEmpty()) {
+            try {
+                Intent view = new Intent(Intent.ACTION_VIEW);
+                view.setData(Uri.parse(it.savedUri));
+                view.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                startActivity(view);
+            } catch (android.content.ActivityNotFoundException e) {
+                if (getView() != null)
+                    SnackbarUtil.show(this, getView(), R.string.recv_no_app_to_open);
+            } catch (SecurityException e) {
+                if (getView() != null)
+                    SnackbarUtil.show(this, getView(), R.string.err_permission_denied);
+            } catch (Exception e) {
+                if (getView() != null)
+                    SnackbarUtil.show(this, getView(), R.string.err_unknown);
+            }
+            return;
+        }
+
         ClipboardManager cm = (ClipboardManager) requireContext()
                 .getSystemService(Context.CLIPBOARD_SERVICE);
         String payload;
@@ -65,6 +89,7 @@ public class HistoryFragment extends Fragment {
             return;
         }
         cm.setPrimaryClip(ClipData.newPlainText("SafeShare", payload));
-        Toast.makeText(requireContext(), toast, Toast.LENGTH_SHORT).show();
+        if (getView() != null)
+            SnackbarUtil.show(this, getView(), toast);
     }
 }

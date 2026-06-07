@@ -9,7 +9,7 @@ import dev.medveed.safeshare.crypto.StreamingAesGcm;
 
 public final class StreamingDownloadDecryptor {
 
-    private StreamingDownloadDecryptor() { /* no instances */ }
+    private StreamingDownloadDecryptor() {}
 
     public static String decrypt(
             byte[] key16,

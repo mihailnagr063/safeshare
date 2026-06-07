@@ -5,12 +5,54 @@
     <string name="nav_send">Send</string>
     <string name="nav_receive">Receive</string>
     <string name="nav_history">History</string>
+    <string name="nav_contacts">Contacts</string>
     <string name="nav_settings">Settings</string>
 
-    <!-- Send flow -->
+    <string name="contacts_title">Contacts</string>
+    <string name="contacts_empty">No contacts yet. Scan a contact QR to add one.</string>
+    <string name="contacts_add">Add contact</string>
+    <string name="contacts_my_qr">My QR</string>
+    <string name="contacts_scan_title">Scan QR code</string>
+    <string name="contacts_enter_key">Enter key manually</string>
+    <string name="contacts_key_hint">Public key (safeshare-pub://… or raw base64)</string>
+    <string name="contacts_new_contact">New contact</string>
+    <string name="contacts_name_required">Name is required</string>
+    <string name="contacts_name_hint">Contact name</string>
+    <string name="contacts_save">Save</string>
+    <string name="contacts_added">Contact added</string>
+    <string name="contacts_deleted">Contact deleted</string>
+    <string name="contacts_invalid_qr">Invalid contact QR</string>
+    <string name="contacts_invalid_key">Invalid public key. Enter a safeshare-pub:// URI or raw base64.</string>
+    <string name="contacts_no_identity">Identity key not found</string>
+    <string name="contacts_qr_failed">Failed to generate QR</string>
+    <string name="contacts_close">Close</string>
+    <string name="contacts_cancel">Cancel</string>
+
+    <string name="contacts_delete">Delete</string>
+    <string name="contacts_edit">Rename</string>
+    <string name="contacts_edit_title">Rename contact</string>
+    <string name="contacts_delete_title">Delete contact</string>
+    <string name="contacts_delete_confirm_msg">Delete contact %1$s?</string>
+    <string name="contacts_duplicate_key">This public key is already in your contacts</string>
+    <string name="contacts_renamed">Contact renamed</string>
+    <string name="contacts_pub_key_label">Your public key</string>
+    <string name="contacts_copy_key">Copy</string>
+    <string name="contacts_share_key">Share</string>
+    <string name="contacts_key_copied">Public key copied</string>
+
+    <string name="send_section_recipient">Recipient</string>
+    <string name="send_section_file">File</string>
+    <string name="send_section_storage">Storage</string>
+    <string name="send_section_expiration">Expiration</string>
+
     <string name="send_title">Send a file</string>
     <string name="send_pick_file">Pick file</string>
     <string name="send_no_file">No file selected</string>
+    <string name="send_select_recipient">Select recipient</string>
+    <string name="send_no_recipient">No recipient selected</string>
+    <string name="send_recipient_label">Recipient: %1$s</string>
+    <string name="send_scan_recipient">Scan QR</string>
+    <string name="send_pick_contact">Contact</string>
     <string name="send_selected">Selected: %1$s (%2$s)</string>
     <string name="send_ttl">Self-destruct after</string>
     <string name="send_ttl_1h">1h</string>
@@ -22,7 +64,7 @@
     <string name="send_ttl_unit_day">day</string>
     <string name="send_max_downloads">Max downloads: %1$d</string>
     <string name="send_start">Start upload</string>
-    <string name="send_progress_fmt">%1$d%% — %2$s of %3$s</string>
+    <string name="send_progress_fmt">%1$d%% - %2$s of %3$s</string>
     <string name="send_done_title">Ready to share</string>
     <string name="send_done_code_label">Transfer code</string>
     <string name="send_copy_code">Copy code</string>
@@ -31,21 +73,22 @@
     <string name="send_failed">Upload failed: %1$s</string>
     <string name="send_expires_fmt">Expires: %1$s</string>
 
-    <!-- Receive flow -->
     <string name="recv_title">Receive a file</string>
-    <string name="recv_code_hint">Transfer code (e.g. K7XJ29MQ.word word …)</string>
+    <string name="recv_code_hint">Transfer code</string>
     <string name="recv_scan">Scan QR</string>
     <string name="recv_paste">Paste from clipboard</string>
     <string name="recv_start">Download and decrypt</string>
-    <string name="recv_progress_fmt">%1$d%% — %2$s of %3$s</string>
+    <string name="recv_checking">Checking…</string>
+    <string name="recv_progress_fmt">%1$d%% - %2$s of %3$s</string>
     <string name="recv_done_title">File saved</string>
     <string name="recv_done_name_fmt">Original name: %1$s</string>
+    <string name="recv_saved_as_fmt">Saved as: %1$s</string>
     <string name="recv_open_file">Open</string>
+    <string name="recv_open_folder">Open folder</string>
     <string name="recv_new_download">New download</string>
     <string name="recv_failed">Download failed: %1$s</string>
     <string name="recv_camera_permission_denied">Camera permission denied. Enter the code by hand, or grant permission in system settings.</string>
 
-    <!-- Notifications -->
     <string name="upload_channel">File uploads</string>
     <string name="upload_channel_desc">Progress of ongoing SafeShare uploads.</string>
     <string name="upload_notification_title">Uploading %1$s</string>
@@ -58,7 +101,16 @@
     <string name="download_notification_done">Downloaded %1$s</string>
     <string name="download_notification_failed">Download failed</string>
 
-    <!-- Settings -->
+    <string name="settings_section_appearance">Appearance</string>
+    <string name="settings_theme_label">Theme</string>
+    <string name="settings_theme_system">System</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_section_identity">Identity</string>
+    <string name="settings_pub_key_label">Public key fingerprint</string>
+    <string name="settings_pub_key_copy">Copy</string>
+    <string name="settings_section_data">Data</string>
+    <string name="settings_clear_history">Clear transfer history</string>
     <string name="settings_server_label">Backend URL</string>
     <string name="settings_server_hint">Where to upload and download files. Must start with http:// or https://.</string>
     <string name="settings_save">Save</string>
@@ -73,11 +125,14 @@
     <string name="settings_saved">Saved</string>
     <string name="settings_reset_done">Reset to default</string>
     <string name="settings_about_title">About</string>
-    <string name="settings_version_fmt">SafeShare v%1$s (build %2$d)</string>
+    <string name="settings_version_fmt">SafeShare v%1$s</string>
     <string name="settings_about_blurb">End-to-end encrypted file sharing. Plaintext never leaves your device.</string>
 
-    <!-- History -->
     <string name="history_empty">No transfers yet. Send or receive a file to see it here.</string>
+    <string name="history_clear">Clear</string>
+    <string name="history_clear_title">Clear history</string>
+    <string name="history_clear_confirm">Delete all transfer history?</string>
+    <string name="history_cleared">History cleared</string>
     <string name="history_dir_sent">SENT</string>
     <string name="history_dir_received">RECEIVED</string>
     <string name="history_status_in_progress">IN PROGRESS</string>
@@ -86,10 +141,24 @@
     <string name="history_status_revoked">REVOKED</string>
     <string name="history_status_unknown">UNKNOWN</string>
     <string name="history_meta_fmt">ID: %1$s · %2$s</string>
+    <string name="history_provider_yandex">Yandex Disk</string>
+    <string name="history_provider_unknown">Provider: %1$s</string>
     <string name="history_copied_file_id">File ID copied</string>
     <string name="history_copied_filename">Filename copied</string>
 
-    <!-- Generic errors -->
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_get_started">Get started</string>
+
+    <string name="onboarding_welcome_title">Welcome to SafeShare</string>
+    <string name="onboarding_welcome_desc">End-to-end encrypted file sharing.\nYour files, your key, the server never sees anything.</string>
+
+    <string name="onboarding_send_title">Send files securely</string>
+    <string name="onboarding_send_desc">Scan the recipient\'s QR code, pick a file, and share the transfer code.\nOnly the recipient can decrypt it.</string>
+
+    <string name="onboarding_receive_title">Receive files safely</string>
+    <string name="onboarding_receive_desc">Paste or scan a transfer code, choose where to save, and the file is decrypted on your device.\nNo plaintext leaves your device.</string>
+
     <string name="err_unknown">Unknown error.</string>
     <string name="err_unknown_host">Server name could not be resolved. Check the URL and the network.</string>
     <string name="err_connect_refused">Server is not reachable.</string>
@@ -101,4 +170,58 @@
     <string name="err_too_large">File too large.</string>
     <string name="err_server_error">Server error. Try again later.</string>
     <string name="err_io">I/O error.</string>
+
+    <string name="send_scan_qr_prompt">Scan recipient\'s QR</string>
+    <string name="send_scanned_contact">Scanned contact</string>
+    <string name="send_code_copied">Copied</string>
+    <string name="recv_invalid_code">Invalid code: %1$s</string>
+    <string name="recv_no_app_to_open">No app can open this file</string>
+    <string name="err_permission_denied">Permission denied. Try saving the file again.</string>
+    <string name="contacts_camera_denied">Camera permission denied</string>
+    <string name="download_invalid_code">Invalid transfer code: %1$s</string>
+    <string name="history_unknown_name">(unknown)</string>
+    <string name="history_missing_id">-</string>
+
+    <string name="info_title_transfer_code">What is a Transfer Code?</string>
+    <string name="info_body_transfer_code">After you upload a file, SafeShare creates a unique transfer code.\n\nIt contains the encrypted file location and a one-time key. Only the recipient with the matching private key can decrypt the file.\n\nThe server never sees your key, and the file stays encrypted end-to-end.</string>
+    <string name="info_title_contacts">What are Contacts?</string>
+    <string name="info_body_contacts">Contacts are saved public keys of people you send files to regularly.\n\nA public key is used to encrypt a file so that only the owner of the matching private key can open it.\n\nAdd a contact by scanning their QR code or entering their key manually.\n\nYour contacts are stored only on your device.</string>
+
+    <string name="discovery_send_scan_title">Scan a QR code</string>
+    <string name="discovery_send_scan_desc">Scan the recipient\'s public key QR. This sets up encryption so only they can decrypt the file.</string>
+    <string name="discovery_send_pick_title">Pick a file</string>
+    <string name="discovery_send_pick_desc">Choose any file from your device to send securely.</string>
+    <string name="discovery_send_upload_title">Start upload</string>
+    <string name="discovery_send_upload_desc">After selecting a file and recipient, tap here to encrypt and upload.</string>
+    <string name="discovery_contacts_add_title">Add a contact</string>
+    <string name="discovery_contacts_add_desc">Save a friend\'s public key so you can send files to them without scanning a QR each time.</string>
+    <string name="discovery_contacts_qr_title">Your QR code</string>
+    <string name="discovery_contacts_qr_desc">Show this QR to someone so they can add you as a contact and send files to you.</string>
+
+    <string name="settings_section_debug">Debug</string>
+    <string name="settings_reset_onboarding">Reset onboarding</string>
+    <string name="settings_onboarding_reset">Onboarding will show again on next launch.</string>
+
+    <string name="settings_section_storage">Storage</string>
+    <string name="settings_default_storage">Default storage</string>
+    <string name="settings_provider_setup">Provider setup</string>
+    <string name="status_connected">Connected</string>
+    <string name="status_disconnected">Disconnected</string>
+    <string name="yandex_token_label">OAuth token</string>
+    <string name="yandex_token_hint">Paste your Yandex OAuth token</string>
+    <string name="yandex_connect">Connect</string>
+    <string name="yandex_disconnect">Disconnect</string>
+    <string name="yandex_clear_session">Clear saved login</string>
+    <string name="yandex_connected">Yandex Disk connected</string>
+    <string name="yandex_disconnected">Yandex Disk disconnected</string>
+    <string name="yandex_auth_button">Connect</string>
+    <string name="yandex_verify">Verify and save</string>
+    <string name="yandex_failed">Verification failed</string>
+    <string name="yandex_user_fmt">User: %1$s</string>
+    <string name="yandex_space_fmt">%1$s used of %2$s</string>
+    <string name="settings_storage_open">Storage settings</string>
+
+    <string name="oauth_no_url">No callback URL received.</string>
+    <string name="oauth_success">Yandex Disk authorized!</string>
+    <string name="oauth_failed">Failed to get token. Try manual entry.</string>
 </resources>

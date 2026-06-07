@@ -1,5 +1,3 @@
-//! Unified application error type.
-
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},

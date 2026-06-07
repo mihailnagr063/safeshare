@@ -1,25 +1,23 @@
 [workspace]
 resolver = "2"
-members = ["server", "ssf1", "ssf1-tool"]
+members = ["server", "ssf1"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-license = "MIT OR Apache-2.0"
+license = "AGPL-3.0-only"
 
 [workspace.dependencies]
-# Crypto
 aes-gcm = "0.10"
 sha2 = "0.10"
 rand = "0.8"
 
-# Core
 anyhow = "1"
 thiserror = "1"
 hex = "0.4"
 bytes = "1"
+base64 = "0.22"
 
-# Async / HTTP (server-only)
 tokio = { version = "1", features = ["full"] }
 axum = { version = "0.7", features = ["macros"] }
 tower-http = { version = "0.5", features = ["trace", "limit"] }

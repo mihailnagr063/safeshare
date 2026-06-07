@@ -23,8 +23,6 @@ public final class StreamingUploadBody extends RequestBody {
     private final Supplier supplier;
     private final ProgressListener progress;
 
-    // Progress is reported in plaintext bytes. We wire a wrapping
-    // InputStream that increments this atomic counter on every read.
     private final AtomicLong plaintextDone = new AtomicLong(0);
 
     public StreamingUploadBody(
@@ -48,7 +46,6 @@ public final class StreamingUploadBody extends RequestBody {
 
     @Override
     public long contentLength() {
-        // Ciphertext size
         long nameCtLen = utf8Len(filename) + StreamingAesGcm.TAG_LEN;
         long chunks = (plaintextSize + StreamingAesGcm.CHUNK_SIZE - 1)
                 / StreamingAesGcm.CHUNK_SIZE;

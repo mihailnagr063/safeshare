@@ -13,7 +13,7 @@ import dev.medveed.safeshare.R;
 
 public final class ErrorMessages {
 
-    private ErrorMessages() { /* no instances */ }
+    private ErrorMessages() {}
 
     public static String describe(Context ctx, Throwable t) {
         if (t == null) return ctx.getString(R.string.err_unknown);

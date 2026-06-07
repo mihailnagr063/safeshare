@@ -15,6 +15,7 @@ public final class DownloadController {
         public final long bytesDone;
         public final long bytesTotal;
         @Nullable public final String recoveredFilename;
+        @Nullable public final String originalFilename;
         @Nullable public final Uri output;
         @Nullable public final String error;
         public final long transferRowId;
@@ -22,6 +23,7 @@ public final class DownloadController {
         public State(
                 Stage stage, long done, long total,
                 @Nullable String recoveredFilename,
+                @Nullable String originalFilename,
                 @Nullable Uri output,
                 @Nullable String error,
                 long transferRowId
@@ -30,20 +32,21 @@ public final class DownloadController {
             this.bytesDone = done;
             this.bytesTotal = total;
             this.recoveredFilename = recoveredFilename;
+            this.originalFilename = originalFilename;
             this.output = output;
             this.error = error;
             this.transferRowId = transferRowId;
         }
 
         public static State idle() {
-            return new State(Stage.IDLE, 0, 0, null, null, null, 0);
+            return new State(Stage.IDLE, 0, 0, null, null, null, null, 0);
         }
     }
 
     private static final DownloadController INSTANCE = new DownloadController();
     private final MutableLiveData<State> state = new MutableLiveData<>(State.idle());
 
-    private DownloadController() { /* singleton */ }
+    private DownloadController() {}
 
     public static DownloadController get() { return INSTANCE; }
 

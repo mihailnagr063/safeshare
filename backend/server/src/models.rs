@@ -1,5 +1,3 @@
-//! Domain structs
-
 use serde::Serialize;
 
 #[derive(Debug, Clone)]
@@ -12,6 +10,7 @@ pub struct FileRecord {
     pub expires_at: i64,
     pub max_downloads: i64,
     pub downloads_count: i64,
+    pub filename: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -19,4 +18,5 @@ pub struct UploadResponse {
     pub file_id: String,
     pub expires_at: i64,
     pub max_downloads: i64,
+    pub filename: String,
 }

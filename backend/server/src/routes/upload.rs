@@ -1,5 +1,3 @@
-//! `POST /api/files`
-
 use axum::{
     body::Body,
     extract::State,
@@ -7,6 +5,7 @@ use axum::{
     response::IntoResponse,
     Json,
 };
+use base64::Engine;
 use futures::StreamExt;
 use rand::RngCore;
 use tokio::io::AsyncWriteExt;
@@ -26,6 +25,7 @@ pub async fn post_file(
     let ttl_seconds = parse_header_u64(&headers, "x-safeshare-ttl-seconds")?;
     let max_downloads = parse_header_u64(&headers, "x-safeshare-max-downloads")?;
     let owner_token_hash = parse_owner_token_hash(&headers)?;
+    let filename = parse_filename_header(&headers)?;
 
     if ttl_seconds < state.config.ttl_min_sec || ttl_seconds > state.config.ttl_max_sec {
         return Err(AppError::InvalidRequest(format!(
@@ -73,6 +73,7 @@ pub async fn post_file(
         expires_at: now + ttl_seconds as i64,
         max_downloads: max_downloads as i64,
         downloads_count: 0,
+        filename,
     };
     state.db.insert(&record).await?;
 
@@ -82,6 +83,7 @@ pub async fn post_file(
             file_id,
             expires_at: record.expires_at,
             max_downloads: record.max_downloads,
+            filename: record.filename,
         }),
     ))
 }
@@ -114,7 +116,30 @@ fn parse_owner_token_hash(headers: &HeaderMap) -> AppResult<Vec<u8>> {
     Ok(bytes)
 }
 
-/// 5 random bytes rendered in Crockford Base32 (8 chars)
+fn parse_filename_header(headers: &HeaderMap) -> AppResult<String> {
+    let Some(value) = headers.get("x-safeshare-filename") else {
+        return Ok(String::new());
+    };
+    let encoded = value
+        .to_str()
+        .map_err(|_| AppError::InvalidRequest("invalid x-safeshare-filename header".into()))?;
+    if encoded.is_empty() {
+        return Ok(String::new());
+    }
+    let engine = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+    let bytes = engine
+        .decode(encoded)
+        .map_err(|_| AppError::InvalidRequest("x-safeshare-filename must be base64url".into()))?;
+    let filename = String::from_utf8(bytes)
+        .map_err(|_| AppError::InvalidRequest("x-safeshare-filename must be valid UTF-8".into()))?;
+    if filename.len() > 255 {
+        return Err(AppError::InvalidRequest(
+            "filename must be at most 255 bytes (UTF-8)".into(),
+        ));
+    }
+    Ok(filename)
+}
+
 fn generate_file_id() -> String {
     const ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
     let mut bytes = [0u8; 5];

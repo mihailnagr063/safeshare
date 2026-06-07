@@ -1,5 +1,3 @@
-//! Library interface for the SafeShare HTTP server.
-
 pub mod config;
 pub mod error;
 pub mod models;

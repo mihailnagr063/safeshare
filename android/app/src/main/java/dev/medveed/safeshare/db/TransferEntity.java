@@ -25,6 +25,9 @@ public class TransferEntity {
     public String fileId = "";
 
     @NonNull
+    public String storagePrefix = "";
+
+    @NonNull
     public String filename = "";
 
     public long sizeBytes;
@@ -38,4 +41,7 @@ public class TransferEntity {
 
     @Nullable
     public String ownerTokenHex;
+
+    @Nullable
+    public String savedUri;
 }

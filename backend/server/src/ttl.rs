@@ -1,4 +1,4 @@
-//! Background worker that deletes expired / exhausted files.
+//! Background worker
 
 use std::time::Duration;
 

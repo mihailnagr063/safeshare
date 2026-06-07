@@ -17,16 +17,19 @@ import androidx.core.app.NotificationCompat;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.security.KeyPair;
 import java.security.MessageDigest;
+import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import dev.medveed.safeshare.MainActivity;
 import dev.medveed.safeshare.R;
-import dev.medveed.safeshare.crypto.CrockfordBase32;
+import dev.medveed.safeshare.crypto.EcdhHelper;
 import dev.medveed.safeshare.crypto.KeyMaterial;
-import dev.medveed.safeshare.crypto.TransferCode;
+import dev.medveed.safeshare.crypto.TransferCodeV2;
 import dev.medveed.safeshare.db.AppDatabase;
 import dev.medveed.safeshare.db.TransferDao;
 import dev.medveed.safeshare.db.TransferEntity;
@@ -34,6 +37,8 @@ import dev.medveed.safeshare.net.ApiClient;
 import dev.medveed.safeshare.net.ApiService;
 import dev.medveed.safeshare.net.StreamingUploadBody;
 import dev.medveed.safeshare.net.UploadResponse;
+import dev.medveed.safeshare.net.storage.StorageProvider;
+import dev.medveed.safeshare.net.storage.StorageProviders;
 import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Response;
@@ -49,6 +54,8 @@ public class UploadService extends Service {
     public static final String EXTRA_SIZE = "size";
     public static final String EXTRA_TTL_SECONDS = "ttl_seconds";
     public static final String EXTRA_MAX_DOWNLOADS = "max_downloads";
+    public static final String EXTRA_RECIPIENT_PUB = "recipient_pub";
+    public static final String EXTRA_STORAGE_PREFIX = "storage_prefix";
 
     private ExecutorService executor;
     private NotificationCompat.Builder notificationBuilder;
@@ -64,7 +71,8 @@ public class UploadService extends Service {
 
     public static void start(
             Context context, Uri uri, String filename, long size,
-            long ttlSeconds, long maxDownloads
+            long ttlSeconds, long maxDownloads, byte[] recipientPubBytes,
+            String storagePrefix
     ) {
         Intent i = new Intent(context, UploadService.class);
         i.putExtra(EXTRA_URI, uri);
@@ -72,6 +80,8 @@ public class UploadService extends Service {
         i.putExtra(EXTRA_SIZE, size);
         i.putExtra(EXTRA_TTL_SECONDS, ttlSeconds);
         i.putExtra(EXTRA_MAX_DOWNLOADS, maxDownloads);
+        i.putExtra(EXTRA_RECIPIENT_PUB, recipientPubBytes);
+        i.putExtra(EXTRA_STORAGE_PREFIX, storagePrefix);
         context.startForegroundService(i);
     }
 
@@ -83,7 +93,9 @@ public class UploadService extends Service {
         long size = intent.getLongExtra(EXTRA_SIZE, -1);
         long ttlSeconds = intent.getLongExtra(EXTRA_TTL_SECONDS, 24 * 3600);
         long maxDownloads = intent.getLongExtra(EXTRA_MAX_DOWNLOADS, 3);
-        if (uri == null || filename == null || size <= 0) {
+        byte[] recipientPub = intent.getByteArrayExtra(EXTRA_RECIPIENT_PUB);
+        String storagePrefix = intent.getStringExtra(EXTRA_STORAGE_PREFIX);
+        if (uri == null || filename == null || size <= 0 || recipientPub == null) {
             stopSelf(startId);
             return START_NOT_STICKY;
         }
@@ -97,28 +109,33 @@ public class UploadService extends Service {
         final long fSize = size;
         final long fTtl = ttlSeconds;
         final long fMax = maxDownloads;
+        final byte[] fRecipientPub = recipientPub;
 
-        executor.execute(() -> runUpload(fUri, fFilename, fSize, fTtl, fMax));
+        final String fStoragePrefix = storagePrefix;
+
+        executor.execute(() -> runUpload(fUri, fFilename, fSize, fTtl, fMax, fRecipientPub, fStoragePrefix));
         return START_NOT_STICKY;
     }
 
     private void runUpload(
             Uri uri, String filename, long size,
-            long ttlSeconds, long maxDownloads
+            long ttlSeconds, long maxDownloads,
+            byte[] recipientPubBytes, String storagePrefix
     ) {
         TransferDao dao = AppDatabase.get(this).transferDao();
+        StorageProvider provider = storagePrefix != null
+                ? StorageProviders.byPrefix(storagePrefix)
+                : StorageProviders.getDefault(this);
+        if (provider == null) provider = StorageProviders.getDefault(this);
+
         TransferEntity row = new TransferEntity();
         row.direction = TransferEntity.DIRECTION_SEND;
+        row.storagePrefix = provider.prefix();
         row.filename = filename;
         row.sizeBytes = size;
         row.createdAt = System.currentTimeMillis();
         row.status = TransferEntity.STATUS_IN_PROGRESS;
         long rowId = dao.insert(row);
-
-        KeyMaterial km = KeyMaterial.generate();
-        byte[] fileIdBytes = new byte[5];
-        new SecureRandom().nextBytes(fileIdBytes);
-        String expectedFileId = CrockfordBase32.encode5(fileIdBytes);
 
         byte[] ownerToken = new byte[32];
         new SecureRandom().nextBytes(ownerToken);
@@ -129,6 +146,43 @@ public class UploadService extends Service {
                 UploadController.Stage.UPLOADING, 0, size,
                 null, null, null, 0, null, null, rowId));
 
+        PublicKey recipientPub;
+        KeyPair ephemeralPair;
+        KeyMaterial km;
+        byte[] ephPubBytes;
+        try {
+            recipientPub = EcdhHelper.getPublicKeyFromRaw(recipientPubBytes);
+            ephemeralPair = EcdhHelper.generateEphemeralKeyPair();
+            byte[] sharedSecret = EcdhHelper.computeSharedSecret(ephemeralPair.getPrivate(), recipientPub);
+            km = KeyMaterial.fromHkdf(EcdhHelper.hkdf(sharedSecret));
+            ephPubBytes = EcdhHelper.getRawPublicKey(ephemeralPair.getPublic());
+        } catch (Exception e) {
+            Log.w(TAG, "crypto setup failed", e);
+            String msg = dev.medveed.safeshare.util.ErrorMessages.describe(this, e);
+            dao.setStatus(rowId, TransferEntity.STATUS_FAILED, msg);
+            UploadController.get().post(new UploadController.State(
+                    UploadController.Stage.FAILED, 0, size,
+                    null, null, null, 0, null, msg, rowId));
+            stopForeground(STOP_FOREGROUND_DETACH);
+            stopSelf();
+            return;
+        }
+
+        boolean isSafeShare = "s".equals(provider.prefix());
+
+        if (isSafeShare) {
+            ApiService api = ApiClient.get(this).service();
+            runSafeShareUpload(api, dao, km, filename, size, uri, rowId, ownerTokenHex, ephPubBytes, ttlSeconds, maxDownloads, ownerTokenHashHex);
+        } else {
+            runProviderUpload(provider, dao, km, filename, size, uri, rowId, ownerTokenHex, ephPubBytes);
+        }
+    }
+
+    private void runSafeShareUpload(
+            ApiService api, TransferDao dao, KeyMaterial km, String filename, long size, Uri uri,
+            long rowId, String ownerTokenHex, byte[] ephPubBytes,
+            long ttlSeconds, long maxDownloads, String ownerTokenHashHex
+    ) {
         StreamingUploadBody body = new StreamingUploadBody(
                 km, filename, size,
                 () -> openInputOrThrow(uri),
@@ -140,40 +194,32 @@ public class UploadService extends Service {
                     updateNotification(filename, done, total, pct);
                 });
 
-        ApiService api = ApiClient.get(this).service();
         try {
-            Call<UploadResponse> call = api.upload(ttlSeconds, maxDownloads, ownerTokenHashHex, body);
+            String filenameB64 = Base64.getUrlEncoder().withoutPadding()
+                    .encodeToString(filename.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            Call<UploadResponse> call = api.upload(ttlSeconds, maxDownloads, ownerTokenHashHex, filenameB64, body);
             Response<UploadResponse> resp = call.execute();
             if (!resp.isSuccessful() || resp.body() == null) {
                 String msg = "HTTP " + resp.code();
                 try (ResponseBody err = resp.errorBody()) {
                     if (err != null) msg += ": " + err.string();
-                } catch (IOException ignored) { /* ok */ }
+                } catch (IOException ignored) { }
                 throw new IOException(msg);
             }
             UploadResponse ur = resp.body();
             String fileId = ur.file_id;
+            String tcData = ApiClient.get(this).baseUrl() + "|" + fileId;
+            TransferCodeV2 tc = new TransferCodeV2("s", tcData, ephPubBytes, filename);
+            String transferCode = tc.format();
+            String compactUri = tc.formatUri();
             long expiresAt = ur.expires_at * 1000L;
 
-            byte[] idBytes = CrockfordBase32.decode5(fileId);
-            TransferCode tc = new TransferCode(idBytes, km);
-
-            String compactUri = tc.formatSshareUri();
-
-            String verboseCode;
-            try {
-                verboseCode = tc.format();
-            } catch (Exception e) {
-                Log.w(TAG, "cannot format BIP-39 code: " + e.getMessage());
-                verboseCode = tc.formatCompact();
-            }
-
             dao.markSendDone(rowId, fileId, expiresAt, ownerTokenHex,
-                    TransferEntity.STATUS_DONE);
+                    TransferEntity.STATUS_DONE, "s");
 
             UploadController.get().post(new UploadController.State(
                     UploadController.Stage.DONE, size, size,
-                    fileId, verboseCode, compactUri,
+                    fileId, transferCode, compactUri,
                     expiresAt, ownerTokenHex, null, rowId));
 
             notificationManager.notify(NOTIFICATION_ID,
@@ -188,7 +234,50 @@ public class UploadService extends Service {
             notificationManager.notify(NOTIFICATION_ID,
                     makeFailedNotification(filename, msg).build());
         } finally {
-            if (expectedFileId.isEmpty()) { /* unused */ }
+            stopForeground(STOP_FOREGROUND_DETACH);
+            stopSelf();
+        }
+    }
+
+    private void runProviderUpload(
+            StorageProvider provider, TransferDao dao, KeyMaterial km, String filename, long size, Uri uri,
+            long rowId, String ownerTokenHex, byte[] ephPubBytes
+    ) {
+        try {
+            InputStream plainIn = openInputOrThrow(uri);
+
+            String publicUrl = provider.upload(this, plainIn, filename, size, km, (done, total) -> {
+                int pct = total > 0 ? (int) (done * 100 / total) : 0;
+                updateNotification(filename, done, total, pct);
+                UploadController.get().post(new UploadController.State(
+                        UploadController.Stage.UPLOADING, done, total,
+                        null, null, null, 0, null, null, rowId));
+            });
+
+            TransferCodeV2 tc = new TransferCodeV2(provider.prefix(), publicUrl, ephPubBytes, filename);
+            String transferCode = tc.format();
+            long expiresAt = System.currentTimeMillis() + 7L * 24 * 3600 * 1000;
+
+            dao.markSendDone(rowId, publicUrl, expiresAt, ownerTokenHex,
+                    TransferEntity.STATUS_DONE, provider.prefix());
+
+            UploadController.get().post(new UploadController.State(
+                    UploadController.Stage.DONE, size, size,
+                    publicUrl, transferCode, tc.formatUri(),
+                    expiresAt, ownerTokenHex, null, rowId));
+
+            notificationManager.notify(NOTIFICATION_ID,
+                    makeDoneNotification(filename).build());
+        } catch (Exception e) {
+            Log.w(TAG, "provider upload failed", e);
+            String msg = dev.medveed.safeshare.util.ErrorMessages.describe(this, e);
+            dao.setStatus(rowId, TransferEntity.STATUS_FAILED, msg);
+            UploadController.get().post(new UploadController.State(
+                    UploadController.Stage.FAILED, 0, size,
+                    null, null, null, 0, null, msg, rowId));
+            notificationManager.notify(NOTIFICATION_ID,
+                    makeFailedNotification(filename, msg).build());
+        } finally {
             stopForeground(STOP_FOREGROUND_DETACH);
             stopSelf();
         }
@@ -268,8 +357,6 @@ public class UploadService extends Service {
         super.onDestroy();
         if (executor != null) executor.shutdownNow();
     }
-
-    // --- small helpers ------------------------------------------------
 
     private static byte[] sha256(byte[] data) {
         try {

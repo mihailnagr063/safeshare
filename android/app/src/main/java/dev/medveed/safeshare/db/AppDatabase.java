@@ -6,12 +6,13 @@ import androidx.room.Database;
 import androidx.room.Room;
 import androidx.room.RoomDatabase;
 
-@Database(entities = {TransferEntity.class}, version = 1, exportSchema = false)
+@Database(entities = {TransferEntity.class, ContactEntity.class}, version = 4, exportSchema = false)
 public abstract class AppDatabase extends RoomDatabase {
 
     private static volatile AppDatabase instance;
 
     public abstract TransferDao transferDao();
+    public abstract ContactDao contactDao();
 
     public static AppDatabase get(Context context) {
         AppDatabase local = instance;

@@ -29,9 +29,13 @@ public interface TransferDao {
     @Query("UPDATE transfers SET status = :status, error = :error WHERE id = :id")
     void setStatus(long id, int status, String error);
 
-    @Query("UPDATE transfers SET fileId = :fileId, expiresAt = :expiresAt, "
+    @Query("UPDATE transfers SET fileId = :fileId, storagePrefix = :storagePrefix, "
+            + "expiresAt = :expiresAt, "
             + "ownerTokenHex = :ownerTokenHex, status = :status "
             + "WHERE id = :id")
     void markSendDone(long id, String fileId, long expiresAt,
-                      String ownerTokenHex, int status);
+                      String ownerTokenHex, int status, String storagePrefix);
+
+    @Query("DELETE FROM transfers")
+    void deleteAll();
 }

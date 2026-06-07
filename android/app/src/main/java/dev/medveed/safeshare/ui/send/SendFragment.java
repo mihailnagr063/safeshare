@@ -1,9 +1,11 @@
 package dev.medveed.safeshare.ui.send;
 
+import android.Manifest;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
@@ -12,53 +14,74 @@ import android.provider.OpenableColumns;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
-
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 
 import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.MaterialAutoCompleteTextView;
+import dev.medveed.safeshare.util.SnackbarUtil;
 import com.google.android.material.button.MaterialButtonToggleGroup;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.android.material.slider.Slider;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.MultiFormatWriter;
 import com.google.zxing.WriterException;
 import com.google.zxing.common.BitMatrix;
+import com.journeyapps.barcodescanner.ScanContract;
+import com.journeyapps.barcodescanner.ScanOptions;
 
 import java.text.DateFormat;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Locale;
 
+import android.widget.ArrayAdapter;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import dev.medveed.safeshare.R;
+import dev.medveed.safeshare.db.AppDatabase;
+import dev.medveed.safeshare.db.ContactEntity;
 import dev.medveed.safeshare.service.UploadController;
 import dev.medveed.safeshare.service.UploadService;
+import dev.medveed.safeshare.net.storage.StorageProvider;
+import dev.medveed.safeshare.net.storage.StorageProviders;
 
 
 public class SendFragment extends Fragment {
 
+    @Nullable private View root;
     @Nullable private Uri pickedUri;
     @Nullable private String pickedName;
     private long pickedSize;
     private long ttlSeconds = 24 * 3600;
+    @Nullable private byte[] recipientPubBytes;
+    @Nullable private String recipientName;
 
     private ActivityResultLauncher<String[]> pickLauncher;
+    private ActivityResultLauncher<String> cameraPermissionLauncher;
+    private ActivityResultLauncher<ScanOptions> scanLauncher;
 
-    // Views
     private View groupPicker;
     private View groupProgress;
     private View groupDone;
+    private MaterialButton buttonScanRecipient;
+    private MaterialButton buttonPickContact;
     private MaterialButton buttonPick;
     private MaterialButton buttonStart;
     private MaterialButton buttonCopy;
     private MaterialButton buttonShare;
     private MaterialButton buttonNewSend;
+    private View cardRecipientInfo;
+    private View cardFileInfo;
+    private TextView textRecipient;
     private TextView textSelection;
     private TextView textMaxDownloads;
     private TextView textProgress;
@@ -67,8 +90,13 @@ public class SendFragment extends Fragment {
     private TextView textError;
     private Slider sliderMax;
     private MaterialButtonToggleGroup groupTtl;
+    private MaterialAutoCompleteTextView dropdownStorage;
+    private String selectedProviderPrefix;
+    private List<StorageProvider> providerList;
+    private View groupSafeShareOptions;
     private LinearProgressIndicator progress;
     private ImageView imageQr;
+    private MaterialButton buttonSendInfo;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -76,6 +104,21 @@ public class SendFragment extends Fragment {
         pickLauncher = registerForActivityResult(
                 new ActivityResultContracts.OpenDocument(),
                 this::onFilePicked);
+        cameraPermissionLauncher = registerForActivityResult(
+                new ActivityResultContracts.RequestPermission(),
+                granted -> {
+                    if (granted) launchRecipientScanner();
+                });
+        scanLauncher = registerForActivityResult(new ScanContract(), result -> {
+            if (result == null || result.getContents() == null) return;
+            onRecipientScanned(result.getContents());
+        });
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (dropdownStorage != null) refreshStorageDropdown();
     }
 
     @Nullable
@@ -88,14 +131,20 @@ public class SendFragment extends Fragment {
 
     @Override
     public void onViewCreated(@NonNull View v, @Nullable Bundle savedInstanceState) {
+        root = v;
         groupPicker = v.findViewById(R.id.group_picker);
         groupProgress = v.findViewById(R.id.group_progress);
         groupDone = v.findViewById(R.id.group_done);
+        cardRecipientInfo = v.findViewById(R.id.card_recipient_info);
+        cardFileInfo = v.findViewById(R.id.card_file_info);
+        buttonScanRecipient = v.findViewById(R.id.button_scan_recipient);
+        buttonPickContact = v.findViewById(R.id.button_pick_contact);
         buttonPick = v.findViewById(R.id.button_pick);
         buttonStart = v.findViewById(R.id.button_start);
         buttonCopy = v.findViewById(R.id.button_copy);
         buttonShare = v.findViewById(R.id.button_share);
         buttonNewSend = v.findViewById(R.id.button_new_send);
+        textRecipient = v.findViewById(R.id.text_recipient);
         textSelection = v.findViewById(R.id.text_selection);
         textMaxDownloads = v.findViewById(R.id.text_max_downloads);
         textProgress = v.findViewById(R.id.text_progress);
@@ -104,14 +153,34 @@ public class SendFragment extends Fragment {
         textError = v.findViewById(R.id.text_error);
         sliderMax = v.findViewById(R.id.slider_max_downloads);
         groupTtl = v.findViewById(R.id.group_ttl);
+        dropdownStorage = v.findViewById(R.id.dropdown_storage);
+        groupSafeShareOptions = v.findViewById(R.id.group_safeshare_options);
         progress = v.findViewById(R.id.progress);
         imageQr = v.findViewById(R.id.image_qr);
+        buttonSendInfo = v.findViewById(R.id.button_send_info);
 
+        buttonScanRecipient.setOnClickListener(x -> onScanRecipientClicked());
+        buttonPickContact.setOnClickListener(x -> onPickContactClicked());
         buttonPick.setOnClickListener(x -> pickLauncher.launch(new String[]{"*/*"}));
         buttonStart.setOnClickListener(x -> startUpload());
+
+        refreshStorageDropdown();
+
+        dropdownStorage.setOnItemClickListener((parent, view, position, id) -> {
+            selectedProviderPrefix = providerList.get(position).prefix();
+            groupSafeShareOptions.setVisibility(
+                    "s".equals(selectedProviderPrefix) ? View.VISIBLE : View.GONE);
+        });
+
+        new Thread(() -> {
+            int count = AppDatabase.get(requireContext()).contactDao().getAll().size();
+            requireActivity().runOnUiThread(() ->
+                    buttonPickContact.setEnabled(count > 0));
+        }).start();
         buttonCopy.setOnClickListener(x -> copyCode());
         buttonShare.setOnClickListener(x -> shareCode());
         buttonNewSend.setOnClickListener(x -> resetToIdle());
+        buttonSendInfo.setOnClickListener(x -> showSendInfo());
 
         View groupCustomTtl = v.findViewById(R.id.group_custom_ttl);
         com.google.android.material.textfield.TextInputEditText editTtlValue =
@@ -159,7 +228,6 @@ public class SendFragment extends Fragment {
             requireContext().getContentResolver().takePersistableUriPermission(
                     uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
         } catch (SecurityException ignored) {
-
         }
         Context ctx = requireContext();
         pickedName = queryDisplayName(ctx, uri);
@@ -167,14 +235,118 @@ public class SendFragment extends Fragment {
         textSelection.setText(getString(R.string.send_selected,
                 pickedName == null ? "?" : pickedName,
                 humanSize(pickedSize)));
-        buttonStart.setEnabled(pickedName != null && pickedSize > 0);
+        cardFileInfo.setVisibility(View.VISIBLE);
+        updateStartEnabled();
+    }
+
+    private void updateStartEnabled() {
+        buttonStart.setEnabled(pickedName != null && pickedSize > 0 && recipientPubBytes != null);
+    }
+
+    private void onScanRecipientClicked() {
+        if (ContextCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
+            launchRecipientScanner();
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA);
+        }
+    }
+
+    private void launchRecipientScanner() {
+        ScanOptions opts = new ScanOptions()
+                .setDesiredBarcodeFormats(ScanOptions.QR_CODE)
+                .setPrompt(getString(R.string.send_scan_qr_prompt))
+                .setOrientationLocked(true);
+        scanLauncher.launch(opts);
+    }
+
+    private void onRecipientScanned(String content) {
+        if (content.startsWith("safeshare-pub://")) {
+            String b64 = content.substring("safeshare-pub://".length());
+            try {
+                recipientPubBytes = android.util.Base64.decode(b64,
+                        android.util.Base64.URL_SAFE | android.util.Base64.NO_PADDING | android.util.Base64.NO_WRAP);
+                if (recipientPubBytes.length != 32) {
+                    recipientPubBytes = null;
+                    if (root != null)
+                        SnackbarUtil.show(this, root, R.string.contacts_invalid_qr);
+                    return;
+                }
+                recipientName = getString(R.string.send_scanned_contact);
+                textRecipient.setText(getString(R.string.send_recipient_label, recipientName));
+                cardRecipientInfo.setVisibility(View.VISIBLE);
+                updateStartEnabled();
+            } catch (Exception e) {
+                recipientPubBytes = null;
+                if (root != null)
+                    SnackbarUtil.show(this, root, R.string.contacts_invalid_qr);
+            }
+        } else {
+            recipientPubBytes = null;
+            if (root != null)
+                SnackbarUtil.show(this, root, R.string.contacts_invalid_qr);
+        }
+    }
+
+    private void onPickContactClicked() {
+        new Thread(() -> {
+            java.util.List<ContactEntity> contacts = AppDatabase.get(requireContext()).contactDao().getAll();
+            requireActivity().runOnUiThread(() -> {
+                if (contacts.isEmpty()) {
+                    if (root != null)
+                        SnackbarUtil.show(this, root, R.string.contacts_empty);
+                    return;
+                }
+                String[] names = new String[contacts.size()];
+                for (int i = 0; i < contacts.size(); i++) {
+                    names[i] = contacts.get(i).name;
+                }
+                new MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(R.string.send_pick_contact)
+                        .setItems(names, (dialog, which) -> {
+                            ContactEntity c = contacts.get(which);
+                            recipientPubBytes = c.pubKey;
+                            recipientName = c.name;
+                            textRecipient.setText(getString(R.string.send_recipient_label, recipientName));
+                            cardRecipientInfo.setVisibility(View.VISIBLE);
+                            updateStartEnabled();
+                        })
+                        .setNegativeButton(R.string.contacts_cancel, null)
+                        .show();
+            });
+        }).start();
+    }
+
+    private void refreshStorageDropdown() {
+        providerList = new ArrayList<>(StorageProviders.available(requireContext()));
+        String[] displayNames = new String[providerList.size()];
+        for (int i = 0; i < providerList.size(); i++) {
+            displayNames[i] = providerList.get(i).displayName();
+        }
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_dropdown_item_1line, displayNames);
+        dropdownStorage.setAdapter(adapter);
+
+        if (selectedProviderPrefix == null) {
+            String defaultPrefix = StorageProviders.getDefault(requireContext()).prefix();
+            for (int i = 0; i < providerList.size(); i++) {
+                if (providerList.get(i).prefix().equals(defaultPrefix)) {
+                    dropdownStorage.setText(displayNames[i], false);
+                    selectedProviderPrefix = defaultPrefix;
+                    break;
+                }
+            }
+        }
+        groupSafeShareOptions.setVisibility("s".equals(selectedProviderPrefix)
+                ? View.VISIBLE : View.GONE);
     }
 
     private void startUpload() {
-        if (pickedUri == null || pickedName == null || pickedSize <= 0) return;
+        if (pickedUri == null || pickedName == null || pickedSize <= 0 || recipientPubBytes == null) return;
+        if (selectedProviderPrefix == null) selectedProviderPrefix = "s";
         long maxDownloads = (long) sliderMax.getValue();
         UploadService.start(requireContext(), pickedUri, pickedName, pickedSize,
-                ttlSeconds, maxDownloads);
+                ttlSeconds, maxDownloads, recipientPubBytes, selectedProviderPrefix);
     }
 
     private void onStateChanged(UploadController.State s) {
@@ -184,6 +356,7 @@ public class SendFragment extends Fragment {
                 show(groupProgress, false);
                 show(groupDone, false);
                 show(textError, false);
+                buttonSendInfo.setVisibility(View.GONE);
                 textSelection.setText(R.string.send_no_file);
                 buttonStart.setEnabled(false);
                 break;
@@ -192,6 +365,7 @@ public class SendFragment extends Fragment {
                 show(groupProgress, true);
                 show(groupDone, false);
                 show(textError, false);
+                buttonSendInfo.setVisibility(View.GONE);
                 int pct = s.bytesTotal > 0
                         ? (int) (s.bytesDone * 100 / s.bytesTotal) : 0;
                 progress.setProgress(pct);
@@ -204,10 +378,15 @@ public class SendFragment extends Fragment {
                 show(groupProgress, false);
                 show(groupDone, true);
                 show(textError, false);
+                buttonSendInfo.setVisibility(View.VISIBLE);
                 textCode.setText(s.transferCode != null ? s.transferCode : "");
-                textExpires.setText(getString(R.string.send_expires_fmt,
-                        DateFormat.getDateTimeInstance().format(new Date(s.expiresAt))));
-                // QR uses the compact sshare:// URI (36 chars → small QR).
+                if ("s".equals(selectedProviderPrefix)) {
+                    show(textExpires, true);
+                    textExpires.setText(getString(R.string.send_expires_fmt,
+                            DateFormat.getDateTimeInstance().format(new Date(s.expiresAt))));
+                } else {
+                    show(textExpires, false);
+                }
                 String qrContent = s.compactUri != null ? s.compactUri : s.transferCode;
                 Bitmap qr = renderQr(qrContent);
                 if (qr != null) imageQr.setImageBitmap(qr);
@@ -217,8 +396,9 @@ public class SendFragment extends Fragment {
                 show(groupProgress, false);
                 show(groupDone, false);
                 show(textError, true);
+                buttonSendInfo.setVisibility(View.GONE);
                 textError.setText(getString(R.string.send_failed,
-                        s.error != null ? s.error : "unknown"));
+                        s.error != null ? s.error : getString(R.string.err_unknown)));
                 break;
         }
     }
@@ -228,7 +408,8 @@ public class SendFragment extends Fragment {
         ClipboardManager cm = (ClipboardManager) requireContext()
                 .getSystemService(Context.CLIPBOARD_SERVICE);
         cm.setPrimaryClip(ClipData.newPlainText("SafeShare code", code));
-        Toast.makeText(requireContext(), "Copied", Toast.LENGTH_SHORT).show();
+        if (root != null)
+            SnackbarUtil.show(this, root, getString(R.string.send_code_copied));
     }
 
     private void shareCode() {
@@ -243,7 +424,23 @@ public class SendFragment extends Fragment {
         pickedUri = null;
         pickedName = null;
         pickedSize = 0;
+        recipientPubBytes = null;
+        recipientName = null;
+        textRecipient.setText(R.string.send_no_recipient);
+        cardRecipientInfo.setVisibility(View.GONE);
+        textSelection.setText(R.string.send_no_file);
+        cardFileInfo.setVisibility(View.GONE);
+        buttonStart.setEnabled(false);
+        buttonSendInfo.setVisibility(View.GONE);
         UploadController.get().reset();
+    }
+
+    private void showSendInfo() {
+        new MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.info_title_transfer_code)
+                .setMessage(R.string.info_body_transfer_code)
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
     }
 
     private static void show(View v, boolean visible) {

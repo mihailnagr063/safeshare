@@ -25,11 +25,19 @@ public final class StreamingAesGcm {
     public static final int HEADER_LEN = 24;
     public static final long NAME_NONCE_COUNTER = 0xFFFFFFFFFFFFFFFEL;
 
+    public static long ciphertextLength(String filename, long plaintextSize) {
+        if (plaintextSize <= 0) throw new IllegalArgumentException("plaintextSize must be > 0");
+        byte[] nameBytes = filename.getBytes(StandardCharsets.UTF_8);
+        if (nameBytes.length > 255) throw new IllegalArgumentException("filename longer than 255 bytes");
+        int nameCtLen = nameBytes.length + TAG_LEN;
+        long totalChunks = (plaintextSize + CHUNK_SIZE - 1) / CHUNK_SIZE;
+        return HEADER_LEN + 2L + nameCtLen + plaintextSize + totalChunks * TAG_LEN;
+    }
+
     private static final byte[] NAME_AAD = "SSF1:name".getBytes(StandardCharsets.US_ASCII);
 
-    private StreamingAesGcm() { /* no instances */ }
+    private StreamingAesGcm() {}
 
-    // ----- encrypt ----------------------------------------------------
     public static void encrypt(
             KeyMaterial km,
             String filename,
@@ -56,18 +64,16 @@ public final class StreamingAesGcm {
 
         SecretKeySpec keySpec = new SecretKeySpec(km.key, "AES");
 
-        // Header
         ByteBuffer hdr = ByteBuffer.allocate(HEADER_LEN);
         hdr.put(MAGIC);
         hdr.put(VERSION);
         hdr.put(CHUNK_SIZE_LOG2);
-        hdr.put((byte) 0).put((byte) 0); // reserved
+        hdr.put((byte) 0).put((byte) 0);
         hdr.putInt(totalChunks);
         hdr.putLong(plaintextSize);
         hdr.put(km.r);
         out.write(hdr.array());
 
-        // Filename blob
         byte[] nameBlob = gcmEncrypt(keySpec, nonce(km.r, NAME_NONCE_COUNTER), NAME_AAD, nameBytes);
         if (nameBlob.length > 0xffff) {
             throw new IllegalArgumentException("encrypted filename too long");
@@ -76,7 +82,6 @@ public final class StreamingAesGcm {
         out.write(nameBlob.length & 0xff);
         out.write(nameBlob);
 
-        // Chunks
         byte[] buffer = new byte[CHUNK_SIZE];
         long bytesRemaining = plaintextSize;
         for (int i = 0; i < totalChunks; i++) {
@@ -97,7 +102,6 @@ public final class StreamingAesGcm {
         out.flush();
     }
 
-    // ----- decrypt ----------------------------------------------------
     public static String decrypt(
             byte[] key16,
             byte[] expectedR4OrNull,
@@ -135,7 +139,6 @@ public final class StreamingAesGcm {
 
         SecretKeySpec keySpec = new SecretKeySpec(key16, "AES");
 
-        // Filename
         int nameLen = in.readUnsignedShort();
         if (nameLen < TAG_LEN || nameLen > 255 + TAG_LEN) {
             throw new IOException("filename length out of range");
@@ -145,7 +148,6 @@ public final class StreamingAesGcm {
         byte[] nameBytes = gcmDecrypt(keySpec, nonce(r, NAME_NONCE_COUNTER), NAME_AAD, nameBlob);
         String filename = new String(nameBytes, StandardCharsets.UTF_8);
 
-        // Chunks
         byte[] buffer = new byte[CHUNK_SIZE + TAG_LEN];
         long bytesRemaining = plaintextSize;
         for (int i = 0; i < totalChunks; i++) {
@@ -168,7 +170,6 @@ public final class StreamingAesGcm {
         return filename;
     }
 
-    // ----- helpers ----------------------------------------------------
     static byte[] nonce(byte[] r4, long counter) {
         byte[] n = new byte[12];
         System.arraycopy(r4, 0, n, 0, 4);

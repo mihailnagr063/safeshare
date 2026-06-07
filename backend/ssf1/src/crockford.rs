@@ -1,16 +1,8 @@
-//! Crockford Base32 for the 5-byte `file_id`.
-//!
-//! Uses the canonical 32-character alphabet:
-//!   0 1 2 3 4 5 6 7 8 9 A B C D E F G H J K M N P Q R S T V W X Y Z
-//! Decoding is case-insensitive and treats I/L as 1, O as 0, per
-//! Crockford's spec; U is rejected.
-
 use crate::error::Ssf1Error;
 
 const ALPHABET: &[u8; 32] = b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 pub fn encode_5(bytes: &[u8; 5]) -> String {
-    // 40 bits -> 8 base32 chars.
     let mut v: u64 = 0;
     for &b in bytes {
         v = (v << 8) | b as u64;
@@ -60,7 +52,6 @@ pub fn decode_5(s: &str) -> Result<[u8; 5], Ssf1Error> {
         };
         v = (v << 5) | digit;
     }
-    // 8 base32 chars = 40 bits; the high 24 bits of `v` must be zero.
     if v >> 40 != 0 {
         return Err(Ssf1Error::BadCrockford("overflow"));
     }
