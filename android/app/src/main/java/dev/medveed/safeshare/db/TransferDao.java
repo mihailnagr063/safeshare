@@ -36,6 +36,10 @@ public interface TransferDao {
     void markSendDone(long id, String fileId, long expiresAt,
                       String ownerTokenHex, int status, String storagePrefix);
 
+    @Query("UPDATE transfers SET status = :newStatus, error = :error "
+            + "WHERE direction = :direction AND status = :oldStatus")
+    void failStaleInProgress(int direction, int oldStatus, int newStatus, String error);
+
     @Query("DELETE FROM transfers")
     void deleteAll();
 }

@@ -169,6 +169,7 @@
     <string name="err_gone">File expired or already reached its download limit.</string>
     <string name="err_too_large">File too large.</string>
     <string name="err_server_error">Server error. Try again later.</string>
+    <string name="err_no_network">No network connection. Check your internet and try again.</string>
     <string name="err_io">I/O error.</string>
 
     <string name="send_scan_qr_prompt">Scan recipient\'s QR</string>

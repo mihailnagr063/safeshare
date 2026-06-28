@@ -33,6 +33,7 @@ import dev.medveed.safeshare.BuildConfig;
 import dev.medveed.safeshare.R;
 import dev.medveed.safeshare.crypto.KeyMaterial;
 import dev.medveed.safeshare.crypto.StreamingAesGcm;
+import dev.medveed.safeshare.util.NetworkUtil;
 import dev.medveed.safeshare.ui.oauth.OAuthWebViewActivity;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -64,7 +65,7 @@ public final class YandexDiskProvider implements StorageProvider {
     @Override public String configId() { return "yandex_disk"; }
 
     private SharedPreferences prefs(Context ctx) {
-        return ctx.getSharedPreferences(configId(), 0);
+        return dev.medveed.safeshare.util.SecurePrefs.get(ctx, configId());
     }
 
     @Override
@@ -126,7 +127,7 @@ public final class YandexDiskProvider implements StorageProvider {
         }
     }
 
-    @Override @Nullable
+    @Override
     public String upload(Context ctx, InputStream plaintextIn, String name,
                          long plaintextSize, KeyMaterial km,
                          @Nullable ProgressListener progress) throws Exception {
@@ -144,7 +145,9 @@ public final class YandexDiskProvider implements StorageProvider {
             try (Response resp = client.newCall(req).execute()) {
                 if (!resp.isSuccessful())
                     throw new IOException("get upload url failed: HTTP " + resp.code());
-                uploadUrl = new JSONObject(resp.body().string()).getString("href");
+                ResponseBody b = resp.body();
+                if (b == null) throw new IOException("empty response body");
+                uploadUrl = new JSONObject(b.string()).getString("href");
             }
         }
 
@@ -198,7 +201,9 @@ public final class YandexDiskProvider implements StorageProvider {
             try (Response resp = client.newCall(req).execute()) {
                 if (!resp.isSuccessful())
                     throw new IOException("get public url failed: HTTP " + resp.code());
-                publicUrl = new JSONObject(resp.body().string()).getString("public_url");
+                ResponseBody b = resp.body();
+                if (b == null) throw new IOException("empty response body");
+                publicUrl = new JSONObject(b.string()).getString("public_url");
             }
         }
 
@@ -219,27 +224,27 @@ public final class YandexDiskProvider implements StorageProvider {
                            @Nullable ProgressListener progress) throws Exception {
         String realUrl = resolveDownloadUrl(publicUrl);
         Request req = new Request.Builder().url(realUrl).build();
-        Response resp = client.newCall(req).execute();
-        if (!resp.isSuccessful())
-            throw new IOException("download failed: HTTP " + resp.code());
+        try (Response resp = client.newCall(req).execute()) {
+            if (!resp.isSuccessful())
+                throw new IOException("download failed: HTTP " + resp.code());
 
-        ResponseBody body = resp.body();
-        if (body == null) throw new IOException("empty response body");
+            ResponseBody body = resp.body();
+            if (body == null) throw new IOException("empty response body");
 
-        long total = body.contentLength();
-        ByteArrayOutputStream out = new ByteArrayOutputStream(total > 0 ? (int) total : 8192);
-        byte[] buf = new byte[8192];
-        try (InputStream in = body.byteStream()) {
-            int n;
-            long done = 0;
-            while ((n = in.read(buf)) >= 0) {
-                out.write(buf, 0, n);
-                done += n;
-                if (progress != null) progress.onProgress(done, total);
+            long total = body.contentLength();
+            ByteArrayOutputStream out = new ByteArrayOutputStream(total > 0 ? (int) total : 8192);
+            byte[] buf = new byte[8192];
+            try (InputStream in = body.byteStream()) {
+                int n;
+                long done = 0;
+                while ((n = in.read(buf)) >= 0) {
+                    out.write(buf, 0, n);
+                    done += n;
+                    if (progress != null) progress.onProgress(done, total);
+                }
             }
+            return out.toByteArray();
         }
-        resp.close();
-        return out.toByteArray();
     }
 
     private String resolveDownloadUrl(String publicUrl) throws Exception {
@@ -250,7 +255,9 @@ public final class YandexDiskProvider implements StorageProvider {
         try (Response resp = client.newCall(req).execute()) {
             if (!resp.isSuccessful())
                 throw new IOException("resolve download url failed: HTTP " + resp.code());
-            return new JSONObject(resp.body().string()).getString("href");
+            ResponseBody b = resp.body();
+            if (b == null) throw new IOException("empty response body");
+            return new JSONObject(b.string()).getString("href");
         }
     }
 
@@ -290,6 +297,10 @@ public final class YandexDiskProvider implements StorageProvider {
             CharSequence cs = editToken.getText();
             if (cs == null || cs.toString().trim().isEmpty()) return;
             String t = cs.toString().trim();
+            if (!NetworkUtil.isOnline(ctx)) {
+                Log.w(TAG, "No network for token verification");
+                return;
+            }
             new Thread(() -> {
                 boolean ok;
                 try {
@@ -301,6 +312,7 @@ public final class YandexDiskProvider implements StorageProvider {
                         ok = resp.isSuccessful();
                     }
                 } catch (Exception e) {
+                    Log.w(TAG, "Token verification failed", e);
                     ok = false;
                 }
                 final boolean fOk = ok;
@@ -333,6 +345,10 @@ public final class YandexDiskProvider implements StorageProvider {
     private void fetchDiskInfo(String token, Context ctx,
                                TextView userText, TextView spaceText,
                                LinearProgressIndicator progress) {
+        if (!NetworkUtil.isOnline(ctx)) {
+            Log.d(TAG, "Skipping fetchDiskInfo: no network");
+            return;
+        }
         new Thread(() -> {
             try {
                 Request req = new Request.Builder()
@@ -341,7 +357,9 @@ public final class YandexDiskProvider implements StorageProvider {
                         .build();
                 try (Response resp = client.newCall(req).execute()) {
                     if (!resp.isSuccessful()) return;
-                    String json = resp.body().string();
+                    ResponseBody b = resp.body();
+                    if (b == null) return;
+                    String json = b.string();
                     JSONObject obj = new JSONObject(json);
 
                     JSONObject userObj = obj.optJSONObject("user");
@@ -368,7 +386,8 @@ public final class YandexDiskProvider implements StorageProvider {
                         }
                     });
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                Log.w(TAG, "fetchDiskInfo failed", e);
             }
         }).start();
     }

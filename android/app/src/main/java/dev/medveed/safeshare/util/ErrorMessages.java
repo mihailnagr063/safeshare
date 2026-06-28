@@ -1,6 +1,7 @@
 package dev.medveed.safeshare.util;
 
 import android.content.Context;
+import android.util.Log;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -10,10 +11,30 @@ import java.net.UnknownHostException;
 import java.security.GeneralSecurityException;
 
 import dev.medveed.safeshare.R;
+import okhttp3.ResponseBody;
 
 public final class ErrorMessages {
 
+    private static final String TAG = "ErrorMessages";
+
     private ErrorMessages() {}
+
+    public static String httpError(int code, ResponseBody errBody, Runnable close) {
+        String msg = "HTTP " + code;
+        try {
+            if (errBody != null) {
+                String body = errBody.string();
+                if (!body.isEmpty()) {
+                    msg += code >= 500 ? " (" + body + ")" : ": " + body;
+                }
+            }
+        } catch (IOException e) {
+            Log.d(TAG, "Could not read error body", e);
+        } finally {
+            if (close != null) close.run();
+        }
+        return msg;
+    }
 
     public static String describe(Context ctx, Throwable t) {
         if (t == null) return ctx.getString(R.string.err_unknown);

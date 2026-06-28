@@ -9,6 +9,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.util.Log;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
 import android.view.LayoutInflater;
@@ -28,10 +29,7 @@ import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.google.android.material.slider.Slider;
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.MultiFormatWriter;
-import com.google.zxing.WriterException;
-import com.google.zxing.common.BitMatrix;
+import com.google.android.material.textfield.TextInputEditText;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
 
@@ -43,7 +41,6 @@ import java.util.Locale;
 
 import android.widget.ArrayAdapter;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import dev.medveed.safeshare.R;
@@ -53,9 +50,12 @@ import dev.medveed.safeshare.service.UploadController;
 import dev.medveed.safeshare.service.UploadService;
 import dev.medveed.safeshare.net.storage.StorageProvider;
 import dev.medveed.safeshare.net.storage.StorageProviders;
+import dev.medveed.safeshare.util.QrUtil;
 
 
 public class SendFragment extends Fragment {
+
+    private static final String TAG = "SendFragment";
 
     @Nullable private View root;
     @Nullable private Uri pickedUri;
@@ -132,6 +132,19 @@ public class SendFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View v, @Nullable Bundle savedInstanceState) {
         root = v;
+        bindViews(v);
+        setupRecipientSection();
+        setupFileSection();
+        setupStorageSection();
+        setupTtlSection(v);
+        setupMaxDownloads();
+        setupDoneButtons();
+        observeUploadState();
+    }
+
+    // Views
+
+    private void bindViews(View v) {
         groupPicker = v.findViewById(R.id.group_picker);
         groupProgress = v.findViewById(R.id.group_progress);
         groupDone = v.findViewById(R.id.group_done);
@@ -158,89 +171,21 @@ public class SendFragment extends Fragment {
         progress = v.findViewById(R.id.progress);
         imageQr = v.findViewById(R.id.image_qr);
         buttonSendInfo = v.findViewById(R.id.button_send_info);
+    }
 
+    // Recipient section
+
+    private void setupRecipientSection() {
         buttonScanRecipient.setOnClickListener(x -> onScanRecipientClicked());
         buttonPickContact.setOnClickListener(x -> onPickContactClicked());
-        buttonPick.setOnClickListener(x -> pickLauncher.launch(new String[]{"*/*"}));
-        buttonStart.setOnClickListener(x -> startUpload());
 
-        refreshStorageDropdown();
-
-        dropdownStorage.setOnItemClickListener((parent, view, position, id) -> {
-            selectedProviderPrefix = providerList.get(position).prefix();
-            groupSafeShareOptions.setVisibility(
-                    "s".equals(selectedProviderPrefix) ? View.VISIBLE : View.GONE);
-        });
-
+        Context ctx = requireContext();
         new Thread(() -> {
-            int count = AppDatabase.get(requireContext()).contactDao().getAll().size();
+            int count = AppDatabase.get(ctx).contactDao().getAll().size();
+            if (getActivity() == null) return;
             requireActivity().runOnUiThread(() ->
                     buttonPickContact.setEnabled(count > 0));
         }).start();
-        buttonCopy.setOnClickListener(x -> copyCode());
-        buttonShare.setOnClickListener(x -> shareCode());
-        buttonNewSend.setOnClickListener(x -> resetToIdle());
-        buttonSendInfo.setOnClickListener(x -> showSendInfo());
-
-        View groupCustomTtl = v.findViewById(R.id.group_custom_ttl);
-        com.google.android.material.textfield.TextInputEditText editTtlValue =
-                v.findViewById(R.id.edit_ttl_value);
-        MaterialButtonToggleGroup groupTtlUnit = v.findViewById(R.id.group_ttl_unit);
-        groupTtlUnit.check(R.id.ttl_unit_hr);
-
-        groupTtl.check(R.id.ttl_24h);
-        groupTtl.addOnButtonCheckedListener((grp, id, checked) -> {
-            if (!checked) return;
-            if (id == R.id.ttl_1h) { ttlSeconds = 3600; groupCustomTtl.setVisibility(View.GONE); }
-            else if (id == R.id.ttl_24h) { ttlSeconds = 24 * 3600; groupCustomTtl.setVisibility(View.GONE); }
-            else if (id == R.id.ttl_7d) { ttlSeconds = 7 * 24 * 3600; groupCustomTtl.setVisibility(View.GONE); }
-            else if (id == R.id.ttl_custom) { groupCustomTtl.setVisibility(View.VISIBLE); recalcCustomTtl(editTtlValue, groupTtlUnit); }
-        });
-
-        if (editTtlValue != null) {
-            editTtlValue.addTextChangedListener(new android.text.TextWatcher() {
-                @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
-                @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
-                @Override public void afterTextChanged(android.text.Editable e) {
-                    if (groupTtl.getCheckedButtonId() == R.id.ttl_custom)
-                        recalcCustomTtl(editTtlValue, groupTtlUnit);
-                }
-            });
-        }
-        groupTtlUnit.addOnButtonCheckedListener((g, id, checked) -> {
-            if (checked && groupTtl.getCheckedButtonId() == R.id.ttl_custom)
-                recalcCustomTtl(editTtlValue, groupTtlUnit);
-        });
-
-        sliderMax.addOnChangeListener((s, value, fromUser) ->
-                textMaxDownloads.setText(getString(
-                        R.string.send_max_downloads, (int) value)));
-        textMaxDownloads.setText(getString(
-                R.string.send_max_downloads, (int) sliderMax.getValue()));
-
-        UploadController.get().state().observe(getViewLifecycleOwner(), this::onStateChanged);
-    }
-
-    private void onFilePicked(@Nullable Uri uri) {
-        if (uri == null) return;
-        pickedUri = uri;
-        try {
-            requireContext().getContentResolver().takePersistableUriPermission(
-                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-        } catch (SecurityException ignored) {
-        }
-        Context ctx = requireContext();
-        pickedName = queryDisplayName(ctx, uri);
-        pickedSize = queryDisplaySize(ctx, uri);
-        textSelection.setText(getString(R.string.send_selected,
-                pickedName == null ? "?" : pickedName,
-                humanSize(pickedSize)));
-        cardFileInfo.setVisibility(View.VISIBLE);
-        updateStartEnabled();
-    }
-
-    private void updateStartEnabled() {
-        buttonStart.setEnabled(pickedName != null && pickedSize > 0 && recipientPubBytes != null);
     }
 
     private void onScanRecipientClicked() {
@@ -289,8 +234,10 @@ public class SendFragment extends Fragment {
     }
 
     private void onPickContactClicked() {
+        Context ctx = requireContext();
         new Thread(() -> {
-            java.util.List<ContactEntity> contacts = AppDatabase.get(requireContext()).contactDao().getAll();
+            java.util.List<ContactEntity> contacts = AppDatabase.get(ctx).contactDao().getAll();
+            if (getActivity() == null) return;
             requireActivity().runOnUiThread(() -> {
                 if (contacts.isEmpty()) {
                     if (root != null)
@@ -317,6 +264,54 @@ public class SendFragment extends Fragment {
         }).start();
     }
 
+    // Files
+
+    private void setupFileSection() {
+        buttonPick.setOnClickListener(x -> pickLauncher.launch(new String[]{"*/*"}));
+        buttonStart.setOnClickListener(x -> startUpload());
+    }
+
+    private void onFilePicked(@Nullable Uri uri) {
+        if (uri == null) return;
+        pickedUri = uri;
+        try {
+            requireContext().getContentResolver().takePersistableUriPermission(
+                    uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
+        } catch (SecurityException ignored) {
+        }
+        Context ctx = requireContext();
+        pickedName = queryDisplayName(ctx, uri);
+        pickedSize = queryDisplaySize(ctx, uri);
+        textSelection.setText(getString(R.string.send_selected,
+                pickedName == null ? "?" : pickedName,
+                humanSize(pickedSize)));
+        cardFileInfo.setVisibility(View.VISIBLE);
+        updateStartEnabled();
+    }
+
+    private void updateStartEnabled() {
+        buttonStart.setEnabled(pickedName != null && pickedSize > 0 && recipientPubBytes != null);
+    }
+
+    private void startUpload() {
+        if (pickedUri == null || pickedName == null || pickedSize <= 0 || recipientPubBytes == null) return;
+        if (selectedProviderPrefix == null) selectedProviderPrefix = "s";
+        long maxDownloads = (long) sliderMax.getValue();
+        UploadService.start(requireContext(), pickedUri, pickedName, pickedSize,
+                ttlSeconds, maxDownloads, recipientPubBytes, selectedProviderPrefix);
+    }
+
+    // Storage
+
+    private void setupStorageSection() {
+        refreshStorageDropdown();
+        dropdownStorage.setOnItemClickListener((parent, view, position, id) -> {
+            selectedProviderPrefix = providerList.get(position).prefix();
+            groupSafeShareOptions.setVisibility(
+                    "s".equals(selectedProviderPrefix) ? View.VISIBLE : View.GONE);
+        });
+    }
+
     private void refreshStorageDropdown() {
         providerList = new ArrayList<>(StorageProviders.available(requireContext()));
         String[] displayNames = new String[providerList.size()];
@@ -341,66 +336,71 @@ public class SendFragment extends Fragment {
                 ? View.VISIBLE : View.GONE);
     }
 
-    private void startUpload() {
-        if (pickedUri == null || pickedName == null || pickedSize <= 0 || recipientPubBytes == null) return;
-        if (selectedProviderPrefix == null) selectedProviderPrefix = "s";
-        long maxDownloads = (long) sliderMax.getValue();
-        UploadService.start(requireContext(), pickedUri, pickedName, pickedSize,
-                ttlSeconds, maxDownloads, recipientPubBytes, selectedProviderPrefix);
+    // TTL
+
+    private void setupTtlSection(View v) {
+        View groupCustomTtl = v.findViewById(R.id.group_custom_ttl);
+        TextInputEditText editTtlValue = v.findViewById(R.id.edit_ttl_value);
+        MaterialButtonToggleGroup groupTtlUnit = v.findViewById(R.id.group_ttl_unit);
+        groupTtlUnit.check(R.id.ttl_unit_hr);
+
+        groupTtl.check(R.id.ttl_24h);
+        groupTtl.addOnButtonCheckedListener((grp, id, checked) -> {
+            if (!checked) return;
+            if (id == R.id.ttl_1h) { ttlSeconds = 3600; groupCustomTtl.setVisibility(View.GONE); }
+            else if (id == R.id.ttl_24h) { ttlSeconds = 24 * 3600; groupCustomTtl.setVisibility(View.GONE); }
+            else if (id == R.id.ttl_7d) { ttlSeconds = 7 * 24 * 3600; groupCustomTtl.setVisibility(View.GONE); }
+            else if (id == R.id.ttl_custom) { groupCustomTtl.setVisibility(View.VISIBLE); recalcCustomTtl(editTtlValue, groupTtlUnit); }
+        });
+
+        if (editTtlValue != null) {
+            editTtlValue.addTextChangedListener(new android.text.TextWatcher() {
+                @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+                @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+                @Override public void afterTextChanged(android.text.Editable e) {
+                    if (groupTtl.getCheckedButtonId() == R.id.ttl_custom)
+                        recalcCustomTtl(editTtlValue, groupTtlUnit);
+                }
+            });
+        }
+        groupTtlUnit.addOnButtonCheckedListener((g, id, checked) -> {
+            if (checked && groupTtl.getCheckedButtonId() == R.id.ttl_custom)
+                recalcCustomTtl(editTtlValue, groupTtlUnit);
+        });
     }
 
-    private void onStateChanged(UploadController.State s) {
-        switch (s.stage) {
-            case IDLE:
-                show(groupPicker, true);
-                show(groupProgress, false);
-                show(groupDone, false);
-                show(textError, false);
-                buttonSendInfo.setVisibility(View.GONE);
-                textSelection.setText(R.string.send_no_file);
-                buttonStart.setEnabled(false);
-                break;
-            case UPLOADING: {
-                show(groupPicker, false);
-                show(groupProgress, true);
-                show(groupDone, false);
-                show(textError, false);
-                buttonSendInfo.setVisibility(View.GONE);
-                int pct = s.bytesTotal > 0
-                        ? (int) (s.bytesDone * 100 / s.bytesTotal) : 0;
-                progress.setProgress(pct);
-                textProgress.setText(getString(R.string.send_progress_fmt,
-                        pct, humanSize(s.bytesDone), humanSize(s.bytesTotal)));
-                break;
-            }
-            case DONE:
-                show(groupPicker, false);
-                show(groupProgress, false);
-                show(groupDone, true);
-                show(textError, false);
-                buttonSendInfo.setVisibility(View.VISIBLE);
-                textCode.setText(s.transferCode != null ? s.transferCode : "");
-                if ("s".equals(selectedProviderPrefix)) {
-                    show(textExpires, true);
-                    textExpires.setText(getString(R.string.send_expires_fmt,
-                            DateFormat.getDateTimeInstance().format(new Date(s.expiresAt))));
-                } else {
-                    show(textExpires, false);
-                }
-                String qrContent = s.compactUri != null ? s.compactUri : s.transferCode;
-                Bitmap qr = renderQr(qrContent);
-                if (qr != null) imageQr.setImageBitmap(qr);
-                break;
-            case FAILED:
-                show(groupPicker, true);
-                show(groupProgress, false);
-                show(groupDone, false);
-                show(textError, true);
-                buttonSendInfo.setVisibility(View.GONE);
-                textError.setText(getString(R.string.send_failed,
-                        s.error != null ? s.error : getString(R.string.err_unknown)));
-                break;
-        }
+    private void recalcCustomTtl(TextInputEditText editTtlValue,
+                                  MaterialButtonToggleGroup groupTtlUnit) {
+        CharSequence cs = editTtlValue.getText();
+        if (cs == null || cs.length() == 0) return;
+        try {
+            long n = Long.parseLong(cs.toString().trim());
+            int unitId = groupTtlUnit.getCheckedButtonId();
+            long mult;
+            if (unitId == R.id.ttl_unit_min) mult = 60;
+            else if (unitId == R.id.ttl_unit_day) mult = 24 * 3600;
+            else mult = 3600;
+            ttlSeconds = Math.max(60, Math.min(n * mult, 7L * 24 * 3600));
+        } catch (NumberFormatException ignored) { /* keep previous */ }
+    }
+
+    // Max downloads
+
+    private void setupMaxDownloads() {
+        sliderMax.addOnChangeListener((s, value, fromUser) ->
+                textMaxDownloads.setText(getString(
+                        R.string.send_max_downloads, (int) value)));
+        textMaxDownloads.setText(getString(
+                R.string.send_max_downloads, (int) sliderMax.getValue()));
+    }
+
+    // Done/share buttons
+
+    private void setupDoneButtons() {
+        buttonCopy.setOnClickListener(x -> copyCode());
+        buttonShare.setOnClickListener(x -> shareCode());
+        buttonNewSend.setOnClickListener(x -> resetToIdle());
+        buttonSendInfo.setOnClickListener(x -> showSendInfo());
     }
 
     private void copyCode() {
@@ -443,50 +443,73 @@ public class SendFragment extends Fragment {
                 .show();
     }
 
+    // Upload
+
+    private void observeUploadState() {
+        UploadController.get().state().observe(getViewLifecycleOwner(), this::onStateChanged);
+    }
+
+    private void onStateChanged(UploadController.State s) {
+        switch (s.stage) {
+            case IDLE:
+                show(groupPicker, true);
+                show(groupProgress, false);
+                show(groupDone, false);
+                show(textError, false);
+                buttonSendInfo.setVisibility(View.GONE);
+                textSelection.setText(R.string.send_no_file);
+                buttonStart.setEnabled(false);
+                break;
+            case UPLOADING: {
+                show(groupPicker, false);
+                show(groupProgress, true);
+                show(groupDone, false);
+                show(textError, false);
+                buttonSendInfo.setVisibility(View.GONE);
+                int pct = s.bytesTotal > 0
+                        ? (int) (s.bytesDone * 100 / s.bytesTotal) : 0;
+                progress.setProgress(pct);
+                textProgress.setText(getString(R.string.send_progress_fmt,
+                        pct, humanSize(s.bytesDone), humanSize(s.bytesTotal)));
+                break;
+            }
+            case DONE:
+                show(groupPicker, false);
+                show(groupProgress, false);
+                show(groupDone, true);
+                show(textError, false);
+                buttonSendInfo.setVisibility(View.VISIBLE);
+                textCode.setText(s.transferCode != null ? s.transferCode : "");
+                if ("s".equals(selectedProviderPrefix)) {
+                    show(textExpires, true);
+                    textExpires.setText(getString(R.string.send_expires_fmt,
+                            DateFormat.getDateTimeInstance().format(new Date(s.expiresAt))));
+                } else {
+                    show(textExpires, false);
+                }
+                String qrContent = s.compactUri != null ? s.compactUri : s.transferCode;
+                Bitmap qr = QrUtil.renderQr(qrContent);
+                if (qr != null) imageQr.setImageBitmap(qr);
+                break;
+            case FAILED:
+                show(groupPicker, true);
+                show(groupProgress, false);
+                show(groupDone, false);
+                show(textError, true);
+                buttonSendInfo.setVisibility(View.GONE);
+                textError.setText(getString(R.string.send_failed,
+                        s.error != null ? s.error : getString(R.string.err_unknown)));
+                break;
+        }
+    }
+
+    // Utils
+
     private static void show(View v, boolean visible) {
         v.setVisibility(visible ? View.VISIBLE : View.GONE);
     }
 
-    private void recalcCustomTtl(
-            com.google.android.material.textfield.TextInputEditText editTtlValue,
-            MaterialButtonToggleGroup groupTtlUnit
-    ) {
-        CharSequence cs = editTtlValue.getText();
-        if (cs == null || cs.length() == 0) return;
-        try {
-            long n = Long.parseLong(cs.toString().trim());
-            int unitId = groupTtlUnit.getCheckedButtonId();
-            long mult;
-            if (unitId == R.id.ttl_unit_min) mult = 60;
-            else if (unitId == R.id.ttl_unit_day) mult = 24 * 3600;
-            else mult = 3600;
-            ttlSeconds = Math.max(60, Math.min(n * mult, 7L * 24 * 3600));
-        } catch (NumberFormatException ignored) { /* keep previous */ }
-    }
 
-    @Nullable
-    private static Bitmap renderQr(@Nullable String content) {
-        if (content == null || content.isEmpty()) return null;
-        int size = 800;
-        try {
-            BitMatrix matrix = new MultiFormatWriter()
-                    .encode(content, BarcodeFormat.QR_CODE, size, size);
-            int w = matrix.getWidth();
-            int h = matrix.getHeight();
-            int[] pixels = new int[w * h];
-            for (int y = 0; y < h; y++) {
-                int off = y * w;
-                for (int x = 0; x < w; x++) {
-                    pixels[off + x] = matrix.get(x, y) ? 0xff000000 : 0xffffffff;
-                }
-            }
-            Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-            bmp.setPixels(pixels, 0, w, 0, 0, w, h);
-            return bmp;
-        } catch (WriterException e) {
-            return null;
-        }
-    }
 
     @Nullable
     private static String queryDisplayName(Context ctx, Uri uri) {
@@ -496,7 +519,9 @@ public class SendFragment extends Fragment {
                 int idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
                 if (idx >= 0) return c.getString(idx);
             }
-        } catch (Exception ignored) { /* best-effort */ }
+        } catch (Exception e) {
+            Log.d(TAG, "queryDisplayName failed", e);
+        }
         return uri.getLastPathSegment();
     }
 
@@ -507,15 +532,13 @@ public class SendFragment extends Fragment {
                 int idx = c.getColumnIndex(OpenableColumns.SIZE);
                 if (idx >= 0) return c.getLong(idx);
             }
-        } catch (Exception ignored) { /* best-effort */ }
+        } catch (Exception e) {
+            Log.d(TAG, "queryDisplaySize failed", e);
+        }
         return -1;
     }
 
     private static String humanSize(long bytes) {
-        if (bytes < 0) return "?";
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format(Locale.US, "%.1f KiB", bytes / 1024.0);
-        if (bytes < 1024L * 1024 * 1024) return String.format(Locale.US, "%.1f MiB", bytes / (1024.0 * 1024));
-        return String.format(Locale.US, "%.2f GiB", bytes / (1024.0 * 1024 * 1024));
+        return dev.medveed.safeshare.util.FormatUtil.humanSize(bytes);
     }
 }

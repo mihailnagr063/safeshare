@@ -26,6 +26,7 @@ import java.security.PublicKey;
 import java.util.Base64;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import dev.medveed.safeshare.MainActivity;
 import dev.medveed.safeshare.R;
@@ -36,6 +37,7 @@ import dev.medveed.safeshare.crypto.TransferCodeV2;
 import dev.medveed.safeshare.db.AppDatabase;
 import dev.medveed.safeshare.db.TransferDao;
 import dev.medveed.safeshare.db.TransferEntity;
+import dev.medveed.safeshare.util.NetworkUtil;
 import dev.medveed.safeshare.net.ApiClient;
 import dev.medveed.safeshare.net.ApiService;
 import dev.medveed.safeshare.net.StreamingDownloadDecryptor;
@@ -58,6 +60,7 @@ public class DownloadService extends Service {
     private ExecutorService executor;
     private NotificationCompat.Builder notificationBuilder;
     private NotificationManager notificationManager;
+    private final AtomicInteger lastStartId = new AtomicInteger(0);
 
     public static void start(Context context, String transferCode, Uri outputUri, @Nullable String savedFilename) {
         Intent i = new Intent(context, DownloadService.class);
@@ -93,6 +96,7 @@ public class DownloadService extends Service {
         final String fCode = code;
         final Uri fOutput = output;
         final String fSavedFilename = savedFilename;
+        lastStartId.set(startId);
         executor.execute(() -> runDownload(fCode, fOutput, fSavedFilename));
         return START_NOT_STICKY;
     }
@@ -127,6 +131,13 @@ public class DownloadService extends Service {
                 DownloadController.Stage.DOWNLOADING, 0, 0,
                 null, null, null, null, rowId));
 
+        try {
+            NetworkUtil.requireNetwork(this);
+        } catch (IOException e) {
+            finishFailed(dao, rowId, e.getMessage());
+            return;
+        }
+
         if ("s".equals(tc.storagePrefix)) {
             String baseUrl = TransferCodeV2.extractSafeShareBaseUrl(tc.data);
             String fileId = TransferCodeV2.extractFileId("s", tc.data);
@@ -156,14 +167,11 @@ public class DownloadService extends Service {
             Call<ResponseBody> call = api.download(fileId);
             Response<ResponseBody> resp = call.execute();
             if (!resp.isSuccessful() || resp.body() == null) {
-                String msg = "HTTP " + resp.code();
-                try (ResponseBody err = resp.errorBody()) {
-                    if (err != null) {
-                        String body = err.string();
-                        if (!body.isEmpty() && resp.code() >= 500) msg += " (" + body + ")";
-                    }
-                } catch (IOException ignored) { }
-                throw new IOException(msg);
+                throw new IOException(dev.medveed.safeshare.util.ErrorMessages.httpError(
+                        resp.code(), resp.errorBody(), () -> {
+                            ResponseBody b = resp.body();
+                            if (b != null) b.close();
+                        }));
             }
             long cipherTotal = resp.body().contentLength();
 
@@ -225,7 +233,9 @@ public class DownloadService extends Service {
             try {
                 getContentResolver().takePersistableUriPermission(
                         output, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            } catch (Exception ignored) { }
+            } catch (Exception e) {
+                Log.w(TAG, "takePersistableUriPermission failed", e);
+            }
 
             TransferEntity existing = dao.byId(rowId);
             if (existing != null) {
@@ -253,11 +263,13 @@ public class DownloadService extends Service {
                 android.database.Cursor c = getContentResolver().query(output, null, null, null, null);
                 if (c != null) c.close();
                 android.provider.DocumentsContract.deleteDocument(getContentResolver(), output);
-            } catch (Exception ignored) { }
+            } catch (Exception cleanupEx) {
+                Log.d(TAG, "Cleanup of partial file failed", cleanupEx);
+            }
             finishFailed(dao, rowId, msg);
         } finally {
             stopForeground(STOP_FOREGROUND_DETACH);
-            stopSelf();
+            stopSelf(lastStartId.get());
         }
     }
 
@@ -309,7 +321,9 @@ public class DownloadService extends Service {
             try {
                 getContentResolver().takePersistableUriPermission(
                         output, Intent.FLAG_GRANT_READ_URI_PERMISSION);
-            } catch (Exception ignored) { }
+            } catch (Exception e) {
+                Log.w(TAG, "takePersistableUriPermission failed", e);
+            }
 
             TransferEntity existing = dao.byId(rowId);
             if (existing != null) {
@@ -335,11 +349,13 @@ public class DownloadService extends Service {
             String msg = dev.medveed.safeshare.util.ErrorMessages.describe(this, e);
             try {
                 android.provider.DocumentsContract.deleteDocument(getContentResolver(), output);
-            } catch (Exception ignored) { }
+            } catch (Exception cleanupEx) {
+                Log.d(TAG, "Cleanup of partial file failed", cleanupEx);
+            }
             finishFailed(dao, rowId, msg);
         } finally {
             stopForeground(STOP_FOREGROUND_DETACH);
-            stopSelf();
+            stopSelf(lastStartId.get());
         }
     }
 
@@ -350,7 +366,7 @@ public class DownloadService extends Service {
         notificationManager.notify(NOTIFICATION_ID,
                 makeFailedNotification(msg).build());
         stopForeground(STOP_FOREGROUND_DETACH);
-        stopSelf();
+        stopSelf(lastStartId.get());
     }
 
     private void updateNotification(int pct) {

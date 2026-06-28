@@ -137,13 +137,7 @@ class TransferAdapter extends ListAdapter<TransferEntity, TransferAdapter.VH> {
         }
 
         private static String humanSize(long bytes) {
-            if (bytes <= 0) return "?";
-            if (bytes < 1024) return bytes + " B";
-            if (bytes < 1024 * 1024)
-                return String.format(Locale.US, "%.1f KiB", bytes / 1024.0);
-            if (bytes < 1024L * 1024 * 1024)
-                return String.format(Locale.US, "%.1f MiB", bytes / (1024.0 * 1024));
-            return String.format(Locale.US, "%.2f GiB", bytes / (1024.0 * 1024 * 1024));
+            return dev.medveed.safeshare.util.FormatUtil.humanSize(bytes);
         }
 
         private static String providerDisplayName(Context ctx, String prefix) {

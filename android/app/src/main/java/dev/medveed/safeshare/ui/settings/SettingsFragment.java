@@ -1,5 +1,6 @@
 package dev.medveed.safeshare.ui.settings;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -90,8 +91,9 @@ public class SettingsFragment extends Fragment {
                 .setTitle(R.string.history_clear_title)
                 .setMessage(R.string.history_clear_confirm)
                 .setPositiveButton(R.string.history_clear, (dialog, which) -> {
+                    Context ctx = requireContext();
                     new Thread(() -> {
-                        AppDatabase.get(requireContext()).transferDao().deleteAll();
+                        AppDatabase.get(ctx).transferDao().deleteAll();
                         if (getView() != null)
                             getView().post(() ->
                                     SnackbarUtil.show(SettingsFragment.this, getView(), R.string.history_cleared));

@@ -12,6 +12,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.provider.DocumentsContract;
 import android.text.Editable;
+import android.util.Log;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -47,10 +48,13 @@ import dev.medveed.safeshare.net.ApiClient;
 import dev.medveed.safeshare.net.ApiService;
 import dev.medveed.safeshare.service.DownloadController;
 import dev.medveed.safeshare.service.DownloadService;
+import dev.medveed.safeshare.util.NetworkUtil;
 import retrofit2.Call;
 import retrofit2.Response;
 
 public class ReceiveFragment extends Fragment {
+
+    private static final String TAG = "ReceiveFragment";
 
     private View groupInput;
     private View groupProgress;
@@ -121,7 +125,9 @@ public class ReceiveFragment extends Fragment {
                                     android.provider.OpenableColumns.DISPLAY_NAME);
                             if (idx >= 0) actualName = c.getString(idx);
                         }
-                    } catch (Exception ignored) {}
+                    } catch (Exception e) {
+                        Log.w(TAG, "Could not query display name for output URI", e);
+                    }
                     DownloadService.start(requireContext(), pendingCode, uri, actualName);
                     pendingCode = null;
                 });
@@ -239,7 +245,19 @@ public class ReceiveFragment extends Fragment {
         buttonStart.setEnabled(false);
         buttonStart.setText(R.string.recv_checking);
 
+        Context ctx = requireContext();
         executor.execute(() -> {
+            if (!NetworkUtil.isOnline(ctx)) {
+                if (getActivity() == null) return;
+                requireActivity().runOnUiThread(() -> {
+                    buttonStart.setEnabled(true);
+                    buttonStart.setText(R.string.recv_start);
+                    if (root != null)
+                        SnackbarUtil.show(this, root,
+                                getString(R.string.err_no_network), Snackbar.LENGTH_LONG);
+                });
+                return;
+            }
             String filename;
             if (tc.filename != null && !tc.filename.isEmpty()) {
                 filename = tc.filename;
@@ -251,7 +269,7 @@ public class ReceiveFragment extends Fragment {
                     else {
                         ApiService api = baseUrl != null
                                 ? ApiClient.createForBaseUrl(baseUrl).service()
-                                : ApiClient.get(requireContext()).service();
+                                : ApiClient.get(ctx).service();
                         Call<Void> call = api.head(fileId);
                         Response<Void> resp = call.execute();
                         if (resp.isSuccessful()) {
@@ -274,6 +292,7 @@ public class ReceiveFragment extends Fragment {
             }
 
             final String fName = filename;
+            if (getActivity() == null) return;
             requireActivity().runOnUiThread(() -> {
                 buttonStart.setEnabled(true);
                 buttonStart.setText(R.string.recv_start);
@@ -360,7 +379,9 @@ public class ReceiveFragment extends Fragment {
                 startActivity(intent);
                 return;
             }
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            Log.w(TAG, "openContainingFolder failed", e);
+        }
         if (root != null)
             SnackbarUtil.show(this, root, getString(R.string.recv_no_app_to_open));
     }
@@ -381,10 +402,6 @@ public class ReceiveFragment extends Fragment {
     }
 
     private static String humanSize(long bytes) {
-        if (bytes <= 0) return "?";
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format(Locale.US, "%.1f KiB", bytes / 1024.0);
-        if (bytes < 1024L * 1024 * 1024) return String.format(Locale.US, "%.1f MiB", bytes / (1024.0 * 1024));
-        return String.format(Locale.US, "%.2f GiB", bytes / (1024.0 * 1024 * 1024));
+        return dev.medveed.safeshare.util.FormatUtil.humanSize(bytes);
     }
 }

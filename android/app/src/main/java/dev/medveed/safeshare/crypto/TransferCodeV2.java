@@ -1,5 +1,7 @@
 package dev.medveed.safeshare.crypto;
 
+import android.util.Log;
+
 import androidx.annotation.Nullable;
 
 import java.nio.charset.StandardCharsets;
@@ -7,6 +9,7 @@ import java.util.Base64;
 
 public final class TransferCodeV2 {
 
+    private static final String TAG = "TransferCodeV2";
     private static final String SSHARE_PREFIX = "sshare://";
 
     public final String storagePrefix;
@@ -86,6 +89,7 @@ public final class TransferCodeV2 {
                 data = decodedStr;
             }
         } catch (Exception e) {
+            Log.w(TAG, "Base64 decode fallback for data", e);
             data = rawData;
         }
 
@@ -94,7 +98,9 @@ public final class TransferCodeV2 {
             try {
                 filename = new String(Base64.getUrlDecoder().decode(b64NamePart),
                         StandardCharsets.UTF_8);
-            } catch (Exception ignored) { }
+            } catch (Exception e) {
+                Log.w(TAG, "Failed to decode filename from transfer code", e);
+            }
         }
 
         return new TransferCodeV2(prefix, data, ephPub, filename);

@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="safeshare_api_base" translatable="false">https://medveed.ydns.eu:6677</string>
+    <string name="safeshare_api_base" translatable="false">https://medveed.root.sx:6677</string>
 </resources>

@@ -170,6 +170,7 @@
     <string name="err_gone">Файл истёк или превысил лимит скачиваний.</string>
     <string name="err_too_large">Файл слишком большой.</string>
     <string name="err_server_error">Ошибка сервера. Попробуйте позже.</string>
+    <string name="err_no_network">Нет подключения к сети. Проверьте интернет и попробуйте снова.</string>
     <string name="err_io">Ошибка ввода-вывода.</string>
 
     <string name="send_scan_qr_prompt">Сканируйте QR получателя</string>

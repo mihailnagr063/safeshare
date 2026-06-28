@@ -78,7 +78,7 @@ public class OAuthWebViewActivity extends AppCompatActivity {
             }
         }
         if (token != null && !token.isEmpty()) {
-            SharedPreferences prefs = getSharedPreferences("yandex_disk", 0);
+            SharedPreferences prefs = dev.medveed.safeshare.util.SecurePrefs.get(this, "yandex_disk");
             prefs.edit().putString("access_token", token).apply();
             setResult(RESULT_OK);
         } else {

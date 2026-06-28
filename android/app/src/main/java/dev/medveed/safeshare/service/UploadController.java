@@ -1,8 +1,14 @@
 package dev.medveed.safeshare.service;
 
+import android.content.Context;
+
 import androidx.annotation.MainThread;
 import androidx.annotation.Nullable;
 import androidx.lifecycle.MutableLiveData;
+
+import dev.medveed.safeshare.db.AppDatabase;
+import dev.medveed.safeshare.db.TransferDao;
+import dev.medveed.safeshare.db.TransferEntity;
 
 public final class UploadController {
 
@@ -60,5 +66,14 @@ public final class UploadController {
     @MainThread
     public void reset() {
         state.setValue(State.idle());
+    }
+
+    public static void recoverAfterProcessDeath(Context ctx) {
+        new Thread(() -> {
+            TransferDao dao = AppDatabase.get(ctx).transferDao();
+            dao.failStaleInProgress(TransferEntity.DIRECTION_SEND,
+                    TransferEntity.STATUS_IN_PROGRESS, TransferEntity.STATUS_FAILED,
+                    "Process terminated unexpectedly");
+        }).start();
     }
 }

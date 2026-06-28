@@ -12,6 +12,8 @@ import com.google.android.material.color.DynamicColors;
 import java.security.KeyPair;
 
 import dev.medveed.safeshare.crypto.EcdhHelper;
+import dev.medveed.safeshare.service.DownloadController;
+import dev.medveed.safeshare.service.UploadController;
 
 public class SafeShareApp extends Application {
 
@@ -28,6 +30,9 @@ public class SafeShareApp extends Application {
         DynamicColors.applyToActivitiesIfAvailable(this);
 
         initIdentity();
+
+        UploadController.recoverAfterProcessDeath(this);
+        DownloadController.recoverAfterProcessDeath(this);
     }
 
     private void applySavedTheme() {

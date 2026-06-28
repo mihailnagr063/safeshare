@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.util.Log;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -27,11 +28,6 @@ import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import dev.medveed.safeshare.util.SnackbarUtil;
 import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.MultiFormatWriter;
-import com.google.zxing.WriterException;
-import com.google.zxing.common.BitMatrix;
 import com.journeyapps.barcodescanner.ScanContract;
 import com.journeyapps.barcodescanner.ScanOptions;
 
@@ -40,8 +36,11 @@ import java.util.List;
 import dev.medveed.safeshare.R;
 import dev.medveed.safeshare.db.AppDatabase;
 import dev.medveed.safeshare.db.ContactEntity;
+import dev.medveed.safeshare.util.QrUtil;
 
 public class ContactsFragment extends Fragment {
+
+    private static final String TAG = "ContactsFragment";
 
     private View root;
     private RecyclerView recyclerContacts;
@@ -110,8 +109,10 @@ public class ContactsFragment extends Fragment {
     }
 
     private void loadContacts() {
+        Context ctx = requireContext();
         new Thread(() -> {
-            List<ContactEntity> contacts = AppDatabase.get(requireContext()).contactDao().getAll();
+            List<ContactEntity> contacts = AppDatabase.get(ctx).contactDao().getAll();
+            if (getActivity() == null) return;
             requireActivity().runOnUiThread(() -> {
                 if (recyclerContacts == null) return;
                 boolean empty = contacts.isEmpty();
@@ -202,15 +203,19 @@ public class ContactsFragment extends Fragment {
             byte[] decoded = android.util.Base64.decode(s,
                     android.util.Base64.URL_SAFE | android.util.Base64.NO_PADDING | android.util.Base64.NO_WRAP);
             if (decoded.length == 32) return decoded;
-        } catch (Exception ignored) {}
+        } catch (Exception e) {
+            Log.w(TAG, "parsePubKey decode failed", e);
+        }
         return null;
     }
 
     private void saveContact(String name, byte[] pubKey) {
+        Context ctx = requireContext();
         new Thread(() -> {
             try {
-                int existing = AppDatabase.get(requireContext()).contactDao().countByPubKey(pubKey);
+                int existing = AppDatabase.get(ctx).contactDao().countByPubKey(pubKey);
                 if (existing > 0) {
+                    if (getActivity() == null) return;
                     requireActivity().runOnUiThread(() -> {
                         if (root != null)
                             SnackbarUtil.show(this, root, R.string.contacts_duplicate_key);
@@ -221,13 +226,11 @@ public class ContactsFragment extends Fragment {
                 contact.name = name;
                 contact.pubKey = pubKey;
                 contact.addedAt = System.currentTimeMillis();
-                AppDatabase.get(requireContext()).contactDao().insert(contact);
-                requireActivity().runOnUiThread(() -> {
-                    loadContacts();
-                    if (root != null)
-                        SnackbarUtil.show(this, root, R.string.contacts_added);
-                });
+                AppDatabase.get(ctx).contactDao().insert(contact);
+                if (getActivity() == null) return;
+                requireActivity().runOnUiThread(this::loadContacts);
             } catch (Exception e) {
+                if (getActivity() == null) return;
                 requireActivity().runOnUiThread(() -> {
                     if (root != null)
                         SnackbarUtil.show(this, root, R.string.contacts_duplicate_key);
@@ -274,14 +277,12 @@ public class ContactsFragment extends Fragment {
                             SnackbarUtil.show(this, root, R.string.contacts_name_required);
                         return;
                     }
+                    Context ctx = requireContext();
                     new Thread(() -> {
                         contact.name = newName;
-                        AppDatabase.get(requireContext()).contactDao().update(contact);
-                        requireActivity().runOnUiThread(() -> {
-                            loadContacts();
-                            if (root != null)
-                                SnackbarUtil.show(this, root, R.string.contacts_renamed);
-                        });
+                        AppDatabase.get(ctx).contactDao().update(contact);
+                        if (getActivity() == null) return;
+                        requireActivity().runOnUiThread(this::loadContacts);
                     }).start();
                 })
                 .setNegativeButton(R.string.contacts_cancel, null)
@@ -293,13 +294,11 @@ public class ContactsFragment extends Fragment {
                 .setTitle(R.string.contacts_delete_title)
                 .setMessage(getString(R.string.contacts_delete_confirm_msg, contact.name))
                 .setPositiveButton(R.string.contacts_delete, (dialog, which) -> {
+                    Context ctx = requireContext();
                     new Thread(() -> {
-                        AppDatabase.get(requireContext()).contactDao().delete(contact);
-                        requireActivity().runOnUiThread(() -> {
-                            loadContacts();
-                            if (root != null)
-                                SnackbarUtil.show(this, root, R.string.contacts_deleted);
-                        });
+                        AppDatabase.get(ctx).contactDao().delete(contact);
+                        if (getActivity() == null) return;
+                        requireActivity().runOnUiThread(this::loadContacts);
                     }).start();
                 })
                 .setNegativeButton(R.string.contacts_cancel, null)
@@ -315,7 +314,7 @@ public class ContactsFragment extends Fragment {
             return;
         }
         String uri = "safeshare-pub://" + pubB64;
-        Bitmap qr = renderQr(uri);
+        Bitmap qr = QrUtil.renderQr(uri);
         if (qr == null) {
             if (root != null)
                 SnackbarUtil.show(this, root, R.string.contacts_qr_failed);
@@ -348,29 +347,7 @@ public class ContactsFragment extends Fragment {
         });
     }
 
-    @Nullable
-    private static Bitmap renderQr(@Nullable String content) {
-        if (content == null || content.isEmpty()) return null;
-        int size = 800;
-        try {
-            BitMatrix matrix = new MultiFormatWriter()
-                    .encode(content, BarcodeFormat.QR_CODE, size, size);
-            int w = matrix.getWidth();
-            int h = matrix.getHeight();
-            int[] pixels = new int[w * h];
-            for (int y = 0; y < h; y++) {
-                int off = y * w;
-                for (int x = 0; x < w; x++) {
-                    pixels[off + x] = matrix.get(x, y) ? 0xff000000 : 0xffffffff;
-                }
-            }
-            Bitmap bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-            bmp.setPixels(pixels, 0, w, 0, 0, w, h);
-            return bmp;
-        } catch (WriterException e) {
-            return null;
-        }
-    }
+
 
     private void showContactsInfo() {
         new MaterialAlertDialogBuilder(requireContext())

@@ -18,6 +18,7 @@ import androidx.core.app.NotificationCompat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyPair;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.security.MessageDigest;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -33,6 +34,7 @@ import dev.medveed.safeshare.crypto.TransferCodeV2;
 import dev.medveed.safeshare.db.AppDatabase;
 import dev.medveed.safeshare.db.TransferDao;
 import dev.medveed.safeshare.db.TransferEntity;
+import dev.medveed.safeshare.util.NetworkUtil;
 import dev.medveed.safeshare.net.ApiClient;
 import dev.medveed.safeshare.net.ApiService;
 import dev.medveed.safeshare.net.StreamingUploadBody;
@@ -60,6 +62,7 @@ public class UploadService extends Service {
     private ExecutorService executor;
     private NotificationCompat.Builder notificationBuilder;
     private NotificationManager notificationManager;
+    private final AtomicInteger lastStartId = new AtomicInteger(0);
 
     @Override
     public void onCreate() {
@@ -112,6 +115,7 @@ public class UploadService extends Service {
         final byte[] fRecipientPub = recipientPub;
 
         final String fStoragePrefix = storagePrefix;
+        lastStartId.set(startId);
 
         executor.execute(() -> runUpload(fUri, fFilename, fSize, fTtl, fMax, fRecipientPub, fStoragePrefix));
         return START_NOT_STICKY;
@@ -164,7 +168,20 @@ public class UploadService extends Service {
                     UploadController.Stage.FAILED, 0, size,
                     null, null, null, 0, null, msg, rowId));
             stopForeground(STOP_FOREGROUND_DETACH);
-            stopSelf();
+            stopSelf(lastStartId.get());
+            return;
+        }
+
+        try {
+            NetworkUtil.requireNetwork(this);
+        } catch (IOException e) {
+            String msg = e.getMessage();
+            dao.setStatus(rowId, TransferEntity.STATUS_FAILED, msg);
+            UploadController.get().post(new UploadController.State(
+                    UploadController.Stage.FAILED, 0, size,
+                    null, null, null, 0, null, msg, rowId));
+            stopForeground(STOP_FOREGROUND_DETACH);
+            stopSelf(lastStartId.get());
             return;
         }
 
@@ -200,11 +217,8 @@ public class UploadService extends Service {
             Call<UploadResponse> call = api.upload(ttlSeconds, maxDownloads, ownerTokenHashHex, filenameB64, body);
             Response<UploadResponse> resp = call.execute();
             if (!resp.isSuccessful() || resp.body() == null) {
-                String msg = "HTTP " + resp.code();
-                try (ResponseBody err = resp.errorBody()) {
-                    if (err != null) msg += ": " + err.string();
-                } catch (IOException ignored) { }
-                throw new IOException(msg);
+                throw new IOException(dev.medveed.safeshare.util.ErrorMessages.httpError(
+                        resp.code(), resp.errorBody(), null));
             }
             UploadResponse ur = resp.body();
             String fileId = ur.file_id;
@@ -235,7 +249,7 @@ public class UploadService extends Service {
                     makeFailedNotification(filename, msg).build());
         } finally {
             stopForeground(STOP_FOREGROUND_DETACH);
-            stopSelf();
+            stopSelf(lastStartId.get());
         }
     }
 
@@ -243,9 +257,7 @@ public class UploadService extends Service {
             StorageProvider provider, TransferDao dao, KeyMaterial km, String filename, long size, Uri uri,
             long rowId, String ownerTokenHex, byte[] ephPubBytes
     ) {
-        try {
-            InputStream plainIn = openInputOrThrow(uri);
-
+        try (InputStream plainIn = openInputOrThrow(uri)) {
             String publicUrl = provider.upload(this, plainIn, filename, size, km, (done, total) -> {
                 int pct = total > 0 ? (int) (done * 100 / total) : 0;
                 updateNotification(filename, done, total, pct);
@@ -279,7 +291,7 @@ public class UploadService extends Service {
                     makeFailedNotification(filename, msg).build());
         } finally {
             stopForeground(STOP_FOREGROUND_DETACH);
-            stopSelf();
+            stopSelf(lastStartId.get());
         }
     }
 
@@ -377,9 +389,6 @@ public class UploadService extends Service {
     }
 
     private static String humanSize(long bytes) {
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format(java.util.Locale.US, "%.1f KiB", bytes / 1024.0);
-        if (bytes < 1024L * 1024 * 1024) return String.format(java.util.Locale.US, "%.1f MiB", bytes / (1024.0 * 1024));
-        return String.format(java.util.Locale.US, "%.2f GiB", bytes / (1024.0 * 1024 * 1024));
+        return dev.medveed.safeshare.util.FormatUtil.humanSize(bytes);
     }
 }
